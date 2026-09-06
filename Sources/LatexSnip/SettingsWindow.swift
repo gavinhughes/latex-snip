@@ -24,8 +24,9 @@ enum SettingsWindow {
         let hosting = NSHostingController(rootView: view)
         let window = NSWindow(contentViewController: hosting)
         window.title = "LaTeX Snip Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 480, height: 600))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 500, height: 720))
+        window.minSize = NSSize(width: 480, height: 420)
         window.center()
         window.isReleasedWhenClosed = false
         window.delegate = CloseDelegate.shared

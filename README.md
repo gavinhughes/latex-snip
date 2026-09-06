@@ -8,8 +8,9 @@ Lightweight Mathpix-style snip. Works with **OpenRouter**, **Ollama**, **LM Stud
 
 - Menu bar icon (SF Symbol `function`)
 - Global hotkey (default `⌘⇧L`) via Carbon
-- Configurable `base_url` / `model` / API key
-- Keys from env or Emacs `~/.authinfo`
+- Two model slots (**Online** / **Offline**): enable either or both, pick which to try first, automatic fallback
+- Configurable `base_url` / `model` / API key per slot
+- Keys from env or Emacs `~/.authinfo` (offline usually needs none)
 - Delimiter presets: `$…$`, `$$…$$`, `\(…\)`, `\[…\]`, or none
 
 ## Requirements
@@ -69,20 +70,26 @@ Menu bar **ƒ** → **Settings…** (or `⌘,`):
 - Delimiter preset / ask before or after
 - Launch at login
 - Show Dock icon (off by default; menu-bar icon stays either way)
-- LLM base URL + model
+- Models: enable Online and/or Offline, **Try first** order, base URL + model per slot
 
-Changes save to `~/.config/latex-snip/config.yaml`.
+Changes save to `~/.config/latex-snip/config.yaml`. A snip tries the preferred enabled slot, then the other if it is on and the first fails.
 
 ## Config
-
 
 `~/.config/latex-snip/config.yaml`:
 
 ```yaml
-llm:
-  base_url: https://openrouter.ai/api/v1
-  model: google/gemini-2.5-flash
-  api_key_env: OPENROUTER_API_KEY
+models:
+  order: [online, offline]   # try Online first; Offline is backup
+  online:
+    enabled: true
+    base_url: https://openrouter.ai/api/v1
+    model: google/gemini-2.5-flash
+    api_key_env: OPENROUTER_API_KEY
+  offline:
+    enabled: false
+    base_url: http://127.0.0.1:11434/v1
+    model: llama3.2-vision
 
 hotkey:
   enabled: true
@@ -97,13 +104,15 @@ notify: true
 show_dock_icon: false
 ```
 
+An older `llm:` block still loads as **Online** (enabled). Saving Settings rewrites the file as `models:`.
+
 ### Authinfo
 
 ```
 machine openrouter.ai login apikey password sk-or-…
 ```
 
-Lookup order: `llm.api_key` → `$OPENROUTER_API_KEY` / `$LATEX_SNIP_API_KEY` → `~/.authinfo`.
+Lookup is per slot: `api_key` → `$api_key_env` / `$LATEX_SNIP_API_KEY` → `~/.authinfo` (when that slot has a key env or authinfo enabled). Offline defaults are keyless.
 
 ## License
 

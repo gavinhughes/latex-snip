@@ -105,12 +105,42 @@ struct SettingsView: View {
                 }
             }
 
-            Section("LLM") {
-                TextField("Base URL", text: $draft.llm.baseURL)
-                TextField("Model", text: $draft.llm.model)
-                Text("API key from \(draft.llm.apiKeyEnv) or ~/.authinfo")
+            Section("Models") {
+                Picker("Try first", selection: $draft.models.preferred) {
+                    Text("Online").tag(AppConfig.ModelSlotID.online)
+                    Text("Offline").tag(AppConfig.ModelSlotID.offline)
+                }
+                .pickerStyle(.segmented)
+                Text(tryFirstCaption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if !draft.models.anyEnabled {
+                    Text("Enable at least one model to snip.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            Section {
+                Toggle("Enabled", isOn: $draft.models.online.enabled)
+                TextField("Base URL", text: $draft.models.online.llm.baseURL)
+                TextField("Model", text: $draft.models.online.llm.model)
+                Text(onlineNotes)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Online")
+            }
+
+            Section {
+                Toggle("Enabled", isOn: $draft.models.offline.enabled)
+                TextField("Base URL", text: $draft.models.offline.llm.baseURL)
+                TextField("Model", text: $draft.models.offline.llm.model)
+                Text("Local OpenAI-compatible server (Ollama, LM Studio). Usually no API key.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Offline")
             }
 
             HStack {
@@ -125,7 +155,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .frame(minWidth: 460, minHeight: 520)
+        .frame(minWidth: 480, minHeight: 400)
         .onAppear {
             draft = controller.config
             draft.launchAtLogin = LoginItem.isEnabled || draft.launchAtLogin
@@ -165,5 +195,30 @@ struct SettingsView: View {
         controller.applyConfig(draft)
         savedFlash = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { savedFlash = false }
+    }
+
+    private var tryFirstCaption: String {
+        let online = draft.models.online.enabled
+        let offline = draft.models.offline.enabled
+        switch (online, offline) {
+        case (true, true):
+            let first = draft.models.preferred.displayName
+            let second = draft.models.preferred == .online ? "Offline" : "Online"
+            return "Snip uses \(first) first, then \(second) if that fails."
+        case (true, false):
+            return "Only Online is on. Turn on Offline to use it as backup."
+        case (false, true):
+            return "Only Offline is on. Turn on Online to use it as backup."
+        default:
+            return "Turn on Online, Offline, or both."
+        }
+    }
+
+    private var onlineNotes: String {
+        let env = draft.models.online.llm.apiKeyEnv
+        if env.isEmpty {
+            return "Cloud / remote OpenAI-compatible API. Key from ~/.authinfo or $LATEX_SNIP_API_KEY."
+        }
+        return "Cloud / remote OpenAI-compatible API. Key from $\(env) or ~/.authinfo."
     }
 }
