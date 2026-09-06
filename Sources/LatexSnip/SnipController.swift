@@ -44,7 +44,9 @@ final class SnipController: ObservableObject {
     }
 
     func applyConfig(_ newConfig: AppConfig) {
-        config = newConfig
+        var cfg = newConfig
+        cfg.resolveAPIKeys()
+        config = cfg
         applyDockVisibility()
         // Always re-register — Save is also how a newly granted Accessibility
         // permission takes effect, and recording may have paused the hotkey.
@@ -192,14 +194,14 @@ final class SnipController: ObservableObject {
 
             status = "Recognizing…"
             do {
-                let latex = try await LLMClient.recognize(imageURL: imageURL, config: cfg.llm)
-                let out = Delimiters.wrap(latex, open: cfg.delimiters.open, close: cfg.delimiters.close)
+                let result = try await LLMClient.recognize(imageURL: imageURL, models: cfg.models)
+                let out = Delimiters.wrap(result.latex, open: cfg.delimiters.open, close: cfg.delimiters.close)
                 Notifier.copyToPasteboard(out)
                 if cfg.notify {
                     let preview = out.count > 120 ? String(out.prefix(117)) + "…" : out
                     Notifier.post(title: "LaTeX Snip", body: preview)
                 }
-                status = "Copied"
+                status = "Copied (\(result.slot.label))"
             } catch {
                 lastError = error.localizedDescription
                 status = "Error"

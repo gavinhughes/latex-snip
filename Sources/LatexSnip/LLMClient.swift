@@ -6,9 +6,39 @@ enum LLMClient {
         var errorDescription: String? { message }
     }
 
+    struct Recognition: Equatable {
+        var latex: String
+        var slot: AppConfig.ModelSlotID
+    }
+
+    /// Try enabled slots in preferred order. Network / HTTP / timeout / empty
+    /// responses fall through to the next enabled slot. Combined error if all fail.
+    static func recognize(imageURL: URL, models: AppConfig.Models) async throws -> Recognition {
+        let attempts = models.enabledInOrder()
+        guard !attempts.isEmpty else {
+            throw Error(message: "No models enabled. Turn on Online and/or Offline in Settings.")
+        }
+
+        var errors: [String] = []
+        for (id, config) in attempts {
+            do {
+                let latex = try await recognize(imageURL: imageURL, config: config)
+                let trimmed = latex.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    errors.append("\(id.displayName): empty response")
+                    continue
+                }
+                return Recognition(latex: trimmed, slot: id)
+            } catch {
+                errors.append("\(id.displayName): \(error.localizedDescription)")
+            }
+        }
+        throw Error(message: errors.joined(separator: "\n"))
+    }
+
     static func recognize(imageURL: URL, config: AppConfig.LLM) async throws -> String {
         guard let base = URL(string: config.baseURL) else {
-            throw Error(message: "Invalid llm.base_url")
+            throw Error(message: "Invalid base URL")
         }
         let endpoint = base.appendingPathComponent("chat/completions")
         let data = try Data(contentsOf: imageURL)
