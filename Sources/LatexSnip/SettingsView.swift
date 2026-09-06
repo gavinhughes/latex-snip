@@ -44,15 +44,23 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
-                    Text("Hotkey is not registered. Open Accessibility Settings… or Save to retry.")
+                    Text("Hotkey inactive: after each app update, turn LaTeX Snip OFF then ON in Accessibility, then click Retry.")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
-                Button("Open Accessibility Settings…") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                        NSWorkspace.shared.open(url)
+                HStack {
+                    Button("Open Accessibility Settings…") {
+                        let urls = [
+                            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?path=Privacy_Accessibility",
+                            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+                        ]
+                        for s in urls {
+                            if let url = URL(string: s), NSWorkspace.shared.open(url) { break }
+                        }
                     }
-                    controller.installHotkey()
+                    Button("Retry hotkey") {
+                        controller.installHotkey()
+                    }
                 }
             }
 

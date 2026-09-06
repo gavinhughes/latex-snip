@@ -50,6 +50,17 @@ final class HotkeyMonitor {
             return event.keyCode == UInt16(keyCode) && got == wanted
         }
 
+        let ax = Self.ensureAccessibility(prompt: false)
+        let logPath = "/tmp/latex-snip-hotkey.log"
+        let logLine = "ax=\(ax) key=\(config.keyEquivalent) cmd=\(config.command) shift=\(config.shift) opt=\(config.option) ctrl=\(config.control)\n"
+        if let data = logLine.data(using: .utf8) {
+            if let fh = FileHandle(forWritingAtPath: logPath) {
+                fh.seekToEndOfFile(); fh.write(data); try? fh.close()
+            } else {
+                try? data.write(to: URL(fileURLWithPath: logPath))
+            }
+        }
+
         // Local monitor works when our app is focused (Settings, etc.) without AX.
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, match(event) else { return event }
@@ -57,23 +68,18 @@ final class HotkeyMonitor {
             return nil
         }
 
-        // Global monitor needs Accessibility — this is what makes ⌘⇧M work system-wide.
-        if Self.ensureAccessibility(prompt: false) {
-            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self, match(event) else { return }
-                DispatchQueue.main.async { self.onFire() }
-            }
-            if globalMonitor != nil {
-                NSLog("latex-snip: NSEvent global hotkey active")
-            }
-        } else {
-            NSLog("latex-snip: Accessibility not granted; global NSEvent monitor unavailable")
+        // Always install the global monitor. Without Accessibility, macOS creates it
+        // but does not deliver events — AXIsProcessTrusted must be true for this app
+        // binary (re-toggle after every rebuild/re-sign).
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, match(event) else { return }
+            DispatchQueue.main.async { self.onFire() }
         }
+        NSLog("latex-snip: globalMonitor=%@ ax=%d", String(describing: globalMonitor != nil), ax ? 1 : 0)
 
-        // Carbon as additional path (some OS builds deliver one or the other).
         startCarbon(keyCode: keyCode)
-        // Global NSEvent is what makes the hotkey work system-wide on modern macOS.
-        isActive = (globalMonitor != nil)
+        // Consider registered only when AX is trusted AND monitor exists.
+        isActive = ax && (globalMonitor != nil)
     }
 
     private func startCarbon(keyCode: UInt32) {
