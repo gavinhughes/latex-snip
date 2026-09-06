@@ -26,13 +26,17 @@ final class HotkeyMonitor {
         return AXIsProcessTrusted()
     }
 
+    /// True after a successful `RegisterEventHotKey`.
+    private(set) var isActive = false
+
     func start() {
         stop()
         guard config.enabled else { return }
         // Never prompt here — only the explicit Settings/menu button should.
-        guard Self.ensureAccessibility(prompt: false) else {
-            NSLog("latex-snip: Accessibility not granted; hotkey inactive")
-            return
+        // Carbon hotkeys can register without Accessibility; after a Homebrew
+        // reinstall TCC is often stale, so do not skip RegisterEventHotKey.
+        if !Self.ensureAccessibility(prompt: false) {
+            NSLog("latex-snip: Accessibility not granted; registering hotkey anyway")
         }
 
         let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
@@ -89,7 +93,9 @@ final class HotkeyMonitor {
         )
         if reg != noErr {
             NSLog("latex-snip: RegisterEventHotKey failed: %d", reg)
+            return
         }
+        isActive = true
     }
 
     func stop() {
@@ -101,6 +107,7 @@ final class HotkeyMonitor {
             RemoveEventHandler(handler)
             handlerRef = nil
         }
+        isActive = false
     }
 
     private static func keyCode(for letter: String) -> UInt32? {

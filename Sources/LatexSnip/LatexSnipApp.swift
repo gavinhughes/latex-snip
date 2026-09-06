@@ -7,6 +7,7 @@ struct LatexSnipApp: App {
     @StateObject private var controller = SnipController()
 
     init() {
+        // Hidden until SnipController applies `show_dock_icon` from config.
         NSApplication.shared.setActivationPolicy(.accessory)
         Notifier.requestPermission()
     }
@@ -43,6 +44,14 @@ struct LatexSnipApp: App {
 
             Text("Hotkey \(controller.config.hotkey.summary)")
                 .foregroundStyle(.secondary)
+                .onAppear { controller.refreshHotkeyStatus() }
+            if controller.config.hotkey.enabled && !controller.accessibilityTrusted {
+                Text("Needs Accessibility permission")
+                    .foregroundStyle(.orange)
+            } else if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
+                Text("Hotkey not registered")
+                    .foregroundStyle(.orange)
+            }
             Text(controller.status)
                 .foregroundStyle(.secondary)
             if let err = controller.lastError {

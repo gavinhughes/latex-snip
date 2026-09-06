@@ -2,16 +2,21 @@ import AppKit
 import SwiftUI
 
 /// Menu-bar (LSUIElement) apps often can't show SwiftUI `Settings`.
-/// Open a real NSWindow instead and briefly activate the app.
+/// Open a real NSWindow instead. Stay `.accessory` unless the user wants a Dock icon —
+/// flipping to `.regular` just to show this window is what made the Dock icon appear.
 enum SettingsWindow {
     private static var window: NSWindow?
+    private static weak var controller: SnipController?
+    /// Last *saved* Dock preference; used to revert a live preview on close.
+    private static var savedShowDockIcon = false
 
     @MainActor
     static func show(controller: SnipController) {
+        Self.controller = controller
+        savedShowDockIcon = controller.config.showDockIcon
+
         if let window, window.isVisible {
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
+            present(window)
             return
         }
 
@@ -20,21 +25,40 @@ enum SettingsWindow {
         let window = NSWindow(contentViewController: hosting)
         window.title = "LaTeX Snip Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
-        window.setContentSize(NSSize(width: 480, height: 560))
+        window.setContentSize(NSSize(width: 480, height: 600))
         window.center()
         window.isReleasedWhenClosed = false
         window.delegate = CloseDelegate.shared
         Self.window = window
+        present(window)
+    }
 
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+    /// Preview Dock visibility while Settings is open (Save persists it).
+    @MainActor
+    static func previewDockVisibility(_ showDockIcon: Bool) {
+        ActivationPolicy.apply(showDockIcon: showDockIcon)
+    }
+
+    @MainActor
+    static func commitDockVisibility(_ showDockIcon: Bool) {
+        savedShowDockIcon = showDockIcon
+        ActivationPolicy.apply(showDockIcon: showDockIcon)
     }
 
     @MainActor
     static func handleDidClose() {
         window = nil
-        NSApp.setActivationPolicy(.accessory)
+        ActivationPolicy.apply(showDockIcon: savedShowDockIcon)
+        // Recorder may have paused the hotkey; restore the saved shortcut.
+        controller?.resumeHotkey()
+        controller = nil
+    }
+
+    @MainActor
+    private static func present(_ window: NSWindow) {
+        ActivationPolicy.apply(showDockIcon: savedShowDockIcon)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
     }
 
     private final class CloseDelegate: NSObject, NSWindowDelegate {
