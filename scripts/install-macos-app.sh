@@ -2,14 +2,21 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+VERSION="${VERSION:-0.4.0}"
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)/LatexSnip"
 APP="/Applications/LaTeX Snip.app"
+ICNS="$ROOT/Assets/AppIcon.icns"
+
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/LaTeX Snip"
 chmod +x "$APP/Contents/MacOS/LaTeX Snip"
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+if [[ -f "$ICNS" ]]; then
+  cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
+fi
+
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -21,13 +28,15 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key>
   <string>com.gavinhughes.latex-snip</string>
   <key>CFBundleVersion</key>
-  <string>0.3.0</string>
+  <string>${VERSION}</string>
   <key>CFBundleShortVersionString</key>
-  <string>0.3.0</string>
+  <string>${VERSION}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleExecutable</key>
   <string>LaTeX Snip</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>LSUIElement</key>
@@ -43,4 +52,4 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 PLIST
 echo -n 'APPL????' > "$APP/Contents/PkgInfo"
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
-echo "Installed $APP"
+echo "Installed $APP ($VERSION)"

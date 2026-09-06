@@ -21,13 +21,29 @@ Lightweight Mathpix-style snip. Works with **OpenRouter**, **Ollama**, **LM Stud
 
 ## Install
 
+### DMG (recommended)
+
+Download the latest `.dmg` from [Releases](https://github.com/gavinhughes/latex-snip/releases), open it, drag **LaTeX Snip** to Applications.
+
+### Homebrew
+
+```bash
+brew tap gavinhughes/latex-snip https://github.com/gavinhughes/latex-snip
+brew install --cask latex-snip
+```
+
+(Or `brew install --cask ./homebrew/Casks/latex-snip.rb` from a checkout.)
+
+### From source
+
 ```bash
 git clone https://github.com/gavinhughes/latex-snip.git
 cd latex-snip
-swift build -c release
 ./scripts/install-macos-app.sh
 open "/Applications/LaTeX Snip.app"
 ```
+
+Build a DMG locally: `./scripts/package-dmg.sh` → `dist/LaTeXSnip-*.dmg`.
 
 Then:
 
