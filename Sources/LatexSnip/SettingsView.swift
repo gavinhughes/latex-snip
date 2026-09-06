@@ -7,34 +7,35 @@ struct SettingsView: View {
     @State private var draft: AppConfig
     @State private var loginError: String?
     @State private var savedFlash = false
+    @State private var recordingHotkey = false
 
     init(controller: SnipController) {
         self.controller = controller
         _draft = State(initialValue: controller.config)
     }
 
-    private let keys = Array("abcdefghijklmnopqrstuvwxyz").map(String.init)
-
     var body: some View {
         Form {
             Section("Hotkey") {
                 Toggle("Enable global hotkey", isOn: $draft.hotkey.enabled)
-                HStack {
-                    Toggle("⌘", isOn: $draft.hotkey.command)
-                    Toggle("⇧", isOn: $draft.hotkey.shift)
-                    Toggle("⌥", isOn: $draft.hotkey.option)
-                    Toggle("⌃", isOn: $draft.hotkey.control)
-                }
-                Picker("Key", selection: $draft.hotkey.keyEquivalent) {
-                    ForEach(keys, id: \.self) { k in
-                        Text(k.uppercased()).tag(k)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Shortcut")
+                    HotkeyRecorder(hotkey: $draft.hotkey) { recording in
+                        recordingHotkey = recording
+                        if recording {
+                            controller.pauseHotkey()
+                        } else {
+                            // stay paused until Save reapplies, or resume old
+                            controller.resumeHotkeyIfUnchanged(draft.hotkey)
+                        }
                     }
+                    .frame(maxWidth: 220)
+                    Text("Click the box, then press the keys (e.g. ⌘⇧L). Esc cancels.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: 120)
-                Text("Current: \(draft.hotkey.summary)")
-                    .foregroundStyle(.secondary)
-                Button("Enable Accessibility…") {
-                    HotkeyMonitor.ensureAccessibility(prompt: true)
+                Button("Open Accessibility Settings…") {
+                    // Open settings only — do not force the system prompt every time
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                         NSWorkspace.shared.open(url)
                     }
@@ -95,7 +96,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .frame(minWidth: 460, minHeight: 480)
+        .frame(minWidth: 460, minHeight: 520)
         .onAppear {
             draft = controller.config
             draft.launchAtLogin = LoginItem.isEnabled || draft.launchAtLogin

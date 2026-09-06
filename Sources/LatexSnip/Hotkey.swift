@@ -29,9 +29,13 @@ final class HotkeyMonitor {
     func start() {
         stop()
         guard config.enabled else { return }
-        Self.ensureAccessibility(prompt: true)
+        // Never prompt here — only the explicit Settings/menu button should.
+        guard Self.ensureAccessibility(prompt: false) else {
+            NSLog("latex-snip: Accessibility not granted; hotkey inactive")
+            return
+        }
 
-        var hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
         var modifiers: UInt32 = 0
         if config.command { modifiers |= UInt32(cmdKey) }
         if config.shift { modifiers |= UInt32(shiftKey) }

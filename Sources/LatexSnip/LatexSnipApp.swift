@@ -54,10 +54,9 @@ struct LatexSnipApp: App {
 
             Divider()
 
-            SettingsLink {
-                Text("Settings…")
+            Button("Settings…") {
+                SettingsWindow.show(controller: controller)
             }
-            .keyboardShortcut(",", modifiers: .command)
 
             Button("Enable Accessibility…") {
                 HotkeyMonitor.ensureAccessibility(prompt: true)
@@ -75,9 +74,5 @@ struct LatexSnipApp: App {
             Image(systemName: "function")
         }
         .menuBarExtraStyle(.menu)
-
-        Settings {
-            SettingsView(controller: controller)
-        }
     }
 }

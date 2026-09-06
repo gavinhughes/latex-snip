@@ -19,8 +19,11 @@ final class SnipController: ObservableObject {
     }
 
     func applyConfig(_ newConfig: AppConfig) {
+        let hotkeyChanged = newConfig.hotkey != config.hotkey
         config = newConfig
-        installHotkey()
+        if hotkeyChanged {
+            installHotkey()
+        }
         status = "Settings saved"
     }
 
@@ -41,6 +44,17 @@ final class SnipController: ObservableObject {
             Task { @MainActor in self?.snip() }
         }
         hotkey?.start()
+    }
+
+    func pauseHotkey() {
+        hotkey?.stop()
+    }
+
+    func resumeHotkeyIfUnchanged(_ draftHotkey: AppConfig.Hotkey) {
+        // If user cancelled recording without Save, restore active hotkey
+        if draftHotkey == config.hotkey {
+            installHotkey()
+        }
     }
 
     func setPreset(_ preset: DelimiterPreset) {
