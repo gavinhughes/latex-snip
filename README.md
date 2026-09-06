@@ -27,12 +27,15 @@ Download the latest `.dmg` from [Releases](https://github.com/gavinhughes/latex-
 
 ### Homebrew
 
+Homebrew 6+ requires trusting a third-party tap before its casks load:
+
 ```bash
 brew tap gavinhughes/latex-snip https://github.com/gavinhughes/latex-snip
+brew trust gavinhughes/latex-snip
 brew install --cask latex-snip
 ```
 
-(Or `brew install --cask ./Casks/latex-snip.rb` from a checkout.)
+(Or from a checkout: `brew install --cask ./Casks/latex-snip.rb`.)
 
 ### From source
 

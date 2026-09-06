@@ -7,7 +7,7 @@ cask "latex-snip" do
   desc "Menu-bar math screenshot to LaTeX via any OpenAI-compatible vision LLM"
   homepage "https://github.com/gavinhughes/latex-snip"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "LaTeX Snip.app"
 
