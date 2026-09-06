@@ -1,0 +1,20 @@
+llm:
+  base_url: https://openrouter.ai/api/v1
+  model: google/gemini-2.5-flash
+  api_key_env: OPENROUTER_API_KEY
+  # Falls back to ~/.authinfo (machine openrouter.ai login apikey)
+  timeout_s: 120
+  temperature: 0
+
+hotkey:
+  enabled: true
+  flags: [cmd, shift]
+  key: l
+
+delimiters:
+  preset: display_dollar
+  open: "$$"
+  close: "$$"
+  ask: none
+
+notify: true
