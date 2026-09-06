@@ -40,18 +40,16 @@ struct LatexSnipApp: App {
 
             Divider()
 
-            Text("Hotkey \(controller.config.hotkey.summary)")
-                .onAppear { controller.refreshHotkeyStatus() }
             if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
-                Text("Hotkey not registered")
-                    .foregroundStyle(.orange)
+                Button("Hotkey needs Accessibility — open Settings…") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                        NSWorkspace.shared.open(url)
+                    }
+                    controller.installHotkey()
+                }
             }
-            Text(controller.status)
-            if let err = controller.lastError {
-                Text(err)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .lineLimit(3)
+            Button(controller.status) {
+                controller.refreshHotkeyStatus()
             }
 
             Divider()
@@ -61,9 +59,6 @@ struct LatexSnipApp: App {
             }
 
             Button("Open Accessibility Settings…") {
-                // Do not call AXIsProcessTrustedWithOptions(prompt: true).
-                // That Accessibility Access sheet stays on screen while you
-                // toggle the grant in System Settings.
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                     NSWorkspace.shared.open(url)
                 }
@@ -75,8 +70,12 @@ struct LatexSnipApp: App {
             Divider()
             Button("Quit") { NSApp.terminate(nil) }
         } label: {
-            Image(systemName: "function")
-        }
-        .menuBarExtraStyle(.menu)
+            // Put shortcut in the status-item label so it isn't a dimmed menu Text row.
+            if controller.config.hotkey.enabled {
+                Label(controller.config.hotkey.summary, systemImage: "function")
+            } else {
+                Image(systemName: "function")
+            }
+        }.menuBarExtraStyle(.menu)
     }
 }

@@ -2,10 +2,12 @@ import AppKit
 import ApplicationServices
 import Carbon
 
-/// Global hotkey via Carbon `RegisterEventHotKey` (more reliable than NSEvent monitors).
+/// Global hotkey: NSEvent monitor (needs Accessibility) + Carbon fallback.
 final class HotkeyMonitor {
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
+    private var globalMonitor: Any?
+    private var localMonitor: Any?
     private let onFire: () -> Void
     private let config: AppConfig.Hotkey
     private static let signature: OSType = 0x4C545853 // 'LTXS'
@@ -15,42 +17,73 @@ final class HotkeyMonitor {
         self.onFire = onFire
     }
 
-    /// Returns true if Accessibility is already granted.
     @discardableResult
     static func ensureAccessibility(prompt: Bool) -> Bool {
         if AXIsProcessTrusted() { return true }
         if prompt {
             let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            AXIsProcessTrustedWithOptions(opts)
+            _ = AXIsProcessTrustedWithOptions(opts)
         }
         return AXIsProcessTrusted()
     }
 
-    /// True after a successful `RegisterEventHotKey`.
     private(set) var isActive = false
 
     func start() {
         stop()
         guard config.enabled else { return }
-        // Never prompt here — only the explicit Settings/menu button should.
-        // Carbon hotkeys can register without Accessibility; after a Homebrew
-        // reinstall TCC is often stale, so do not skip RegisterEventHotKey.
-        if !Self.ensureAccessibility(prompt: false) {
-            NSLog("latex-snip: Accessibility not granted; registering hotkey anyway")
+        guard let keyCode = Self.keyCode(for: config.keyEquivalent) else {
+            NSLog("latex-snip: unsupported hotkey letter %@", config.keyEquivalent)
+            return
         }
 
-        let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
+        var flags: NSEvent.ModifierFlags = []
+        if config.command { flags.insert(.command) }
+        if config.shift { flags.insert(.shift) }
+        if config.option { flags.insert(.option) }
+        if config.control { flags.insert(.control) }
+        let wanted = flags.intersection([.command, .shift, .option, .control])
+
+        let match: (NSEvent) -> Bool = { event in
+            guard event.type == .keyDown else { return false }
+            let got = event.modifierFlags.intersection([.command, .shift, .option, .control])
+            return event.keyCode == UInt16(keyCode) && got == wanted
+        }
+
+        // Local monitor works when our app is focused (Settings, etc.) without AX.
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, match(event) else { return event }
+            DispatchQueue.main.async { self.onFire() }
+            return nil
+        }
+
+        // Global monitor needs Accessibility — this is what makes ⌘⇧M work system-wide.
+        if Self.ensureAccessibility(prompt: false) {
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, match(event) else { return }
+                DispatchQueue.main.async { self.onFire() }
+            }
+            if globalMonitor != nil {
+                NSLog("latex-snip: NSEvent global hotkey active")
+            }
+        } else {
+            NSLog("latex-snip: Accessibility not granted; global NSEvent monitor unavailable")
+        }
+
+        // Carbon as additional path (some OS builds deliver one or the other).
+        startCarbon(keyCode: keyCode)
+        // Global NSEvent is what makes the hotkey work system-wide on modern macOS.
+        isActive = (globalMonitor != nil)
+    }
+
+    private func startCarbon(keyCode: UInt32) {
         var modifiers: UInt32 = 0
         if config.command { modifiers |= UInt32(cmdKey) }
         if config.shift { modifiers |= UInt32(shiftKey) }
         if config.option { modifiers |= UInt32(optionKey) }
         if config.control { modifiers |= UInt32(controlKey) }
 
-        guard let keyCode = Self.keyCode(for: config.keyEquivalent) else {
-            NSLog("latex-snip: unsupported hotkey letter %@", config.keyEquivalent)
-            return
-        }
-
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
         var handlerSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let userData = Unmanaged.passUnretained(self).toOpaque()
         let status = InstallEventHandler(
@@ -82,7 +115,6 @@ final class HotkeyMonitor {
             NSLog("latex-snip: InstallEventHandler failed: %d", status)
             return
         }
-
         let reg = RegisterEventHotKey(
             keyCode,
             modifiers,
@@ -93,12 +125,21 @@ final class HotkeyMonitor {
         )
         if reg != noErr {
             NSLog("latex-snip: RegisterEventHotKey failed: %d", reg)
-            return
+            hotKeyRef = nil
+        } else {
+            NSLog("latex-snip: Carbon hotkey registered")
         }
-        isActive = true
     }
 
     func stop() {
+        if let globalMonitor {
+            NSEvent.removeMonitor(globalMonitor)
+            self.globalMonitor = nil
+        }
+        if let localMonitor {
+            NSEvent.removeMonitor(localMonitor)
+            self.localMonitor = nil
+        }
         if let ref = hotKeyRef {
             UnregisterEventHotKey(ref)
             hotKeyRef = nil
