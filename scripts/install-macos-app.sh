@@ -51,5 +51,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 echo -n 'APPL????' > "$APP/Contents/PkgInfo"
+# Stable ad-hoc id matching CFBundleIdentifier so TCC grants survive rebuilds.
+codesign --force --deep --sign - --identifier "com.gavinhughes.latex-snip" "$APP"
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 echo "Installed $APP ($VERSION)"
+codesign -dv "$APP" 2>&1 | grep -E 'Identifier|Info.plist|Signature' || true
