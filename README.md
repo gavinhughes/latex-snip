@@ -35,7 +35,19 @@ Then:
 2. Allow **Screen Recording** when prompted (or System Settings → Privacy)
 3. Press `⌘⇧L` or **Snip formula**
 
+## Settings
+
+Menu bar **ƒ** → **Settings…** (or `⌘,`):
+
+- Hotkey modifiers + key
+- Delimiter preset / ask before or after
+- Launch at login
+- LLM base URL + model
+
+Changes save to `~/.config/latex-snip/config.yaml`.
+
 ## Config
+
 
 `~/.config/latex-snip/config.yaml`:
 

@@ -12,10 +12,16 @@ final class SnipController: ObservableObject {
 
     init() {
         self.config = (try? AppConfig.load()) ?? .default
-        // Defer hotkey until after AppKit is up
+        LoginItem.syncFromConfig(config.launchAtLogin)
         DispatchQueue.main.async { [weak self] in
             self?.installHotkey()
         }
+    }
+
+    func applyConfig(_ newConfig: AppConfig) {
+        config = newConfig
+        installHotkey()
+        status = "Settings saved"
     }
 
     func reloadConfig() {
@@ -42,6 +48,28 @@ final class SnipController: ObservableObject {
         let pair = Delimiters.resolve(preset: preset, open: nil, close: nil)
         config.delimiters.open = pair.0
         config.delimiters.close = pair.1
+        try? config.save()
+    }
+
+    private func chooseDelimiterInteractively() -> (String, String)? {
+        let options: [(String, DelimiterPreset)] = [
+            ("$$ … $$", .displayDollar),
+            ("$ … $", .inlineDollar),
+            ("\\[ … \\]", .displayBracket),
+            ("\\( … \\)", .inlineParen),
+            ("none", .none)
+        ]
+        let alert = NSAlert()
+        alert.messageText = "Delimiter"
+        alert.informativeText = "Choose how to wrap the LaTeX."
+        for (label, _) in options {
+            alert.addButton(withTitle: label)
+        }
+        alert.addButton(withTitle: "Cancel")
+        let response = alert.runModal()
+        let idx = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard idx >= 0, idx < options.count else { return nil }
+        return Delimiters.resolve(preset: options[idx].1, open: nil, close: nil)
     }
 
     func snip() {
@@ -49,9 +77,19 @@ final class SnipController: ObservableObject {
         isBusy = true
         status = "Select region…"
         lastError = nil
-        let cfg = config
+        var cfg = config
 
         Task {
+            if cfg.delimiters.ask == .before {
+                guard let pair = chooseDelimiterInteractively() else {
+                    status = "Cancelled"
+                    isBusy = false
+                    return
+                }
+                cfg.delimiters.open = pair.0
+                cfg.delimiters.close = pair.1
+            }
+
             let imageURL = await Task.detached(priority: .userInitiated) {
                 Capture.selection()
             }.value
@@ -62,6 +100,16 @@ final class SnipController: ObservableObject {
                 return
             }
             defer { try? FileManager.default.removeItem(at: imageURL) }
+
+            if cfg.delimiters.ask == .after {
+                guard let pair = chooseDelimiterInteractively() else {
+                    status = "Cancelled"
+                    isBusy = false
+                    return
+                }
+                cfg.delimiters.open = pair.0
+                cfg.delimiters.close = pair.1
+            }
 
             status = "Recognizing…"
             do {

@@ -41,6 +41,8 @@ struct LatexSnipApp: App {
 
             Divider()
 
+            Text("Hotkey \(controller.config.hotkey.summary)")
+                .foregroundStyle(.secondary)
             Text(controller.status)
                 .foregroundStyle(.secondary)
             if let err = controller.lastError {
@@ -52,6 +54,11 @@ struct LatexSnipApp: App {
 
             Divider()
 
+            SettingsLink {
+                Text("Settings…")
+            }
+            .keyboardShortcut(",", modifiers: .command)
+
             Button("Enable Accessibility…") {
                 HotkeyMonitor.ensureAccessibility(prompt: true)
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
@@ -61,11 +68,6 @@ struct LatexSnipApp: App {
             }
 
             Button("Reload config") { controller.reloadConfig() }
-            Button("Open config folder") {
-                let dir = AppConfig.configDir
-                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-                NSWorkspace.shared.open(dir)
-            }
 
             Divider()
             Button("Quit") { NSApp.terminate(nil) }
@@ -73,5 +75,9 @@ struct LatexSnipApp: App {
             Image(systemName: "function")
         }
         .menuBarExtraStyle(.menu)
+
+        Settings {
+            SettingsView(controller: controller)
+        }
     }
 }

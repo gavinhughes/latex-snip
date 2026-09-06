@@ -22,6 +22,25 @@ struct AppConfig: Equatable {
         var shift: Bool
         var option: Bool
         var control: Bool
+
+        var summary: String {
+            var parts: [String] = []
+            if control { parts.append("⌃") }
+            if option { parts.append("⌥") }
+            if shift { parts.append("⇧") }
+            if command { parts.append("⌘") }
+            parts.append(keyEquivalent.uppercased())
+            return parts.joined()
+        }
+
+        var flags: [String] {
+            var f: [String] = []
+            if command { f.append("cmd") }
+            if shift { f.append("shift") }
+            if option { f.append("option") }
+            if control { f.append("ctrl") }
+            return f
+        }
     }
 
     struct DelimiterSettings: Equatable {
@@ -31,14 +50,23 @@ struct AppConfig: Equatable {
         var ask: AskMode
     }
 
-    enum AskMode: String, Equatable {
+    enum AskMode: String, Equatable, CaseIterable, Identifiable {
         case none, before, after
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .none: return "Always use preset"
+            case .before: return "Ask before capture"
+            case .after: return "Ask after capture"
+            }
+        }
     }
 
     var llm: LLM
     var hotkey: Hotkey
     var delimiters: DelimiterSettings
     var notify: Bool
+    var launchAtLogin: Bool
 
     static var configDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -75,7 +103,8 @@ struct AppConfig: Equatable {
                 close: "$$",
                 ask: .none
             ),
-            notify: true
+            notify: true,
+            launchAtLogin: false
         )
     }
 
@@ -96,6 +125,35 @@ struct AppConfig: Equatable {
         cfg.delimiters.open = pair.0
         cfg.delimiters.close = pair.1
         return cfg
+    }
+
+    func save(to url: URL = configURL) throws {
+        try FileManager.default.createDirectory(at: AppConfig.configDir, withIntermediateDirectories: true)
+        var root: [String: Any] = [:]
+        root["llm"] = [
+            "base_url": llm.baseURL,
+            "model": llm.model,
+            "api_key_env": llm.apiKeyEnv,
+            "timeout_s": Int(llm.timeout),
+            "temperature": llm.temperature
+        ] as [String: Any]
+        // don't write api_key into yaml
+        root["hotkey"] = [
+            "enabled": hotkey.enabled,
+            "flags": hotkey.flags,
+            "key": hotkey.keyEquivalent
+        ] as [String: Any]
+        root["delimiters"] = [
+            "preset": delimiters.preset.rawValue,
+            "open": delimiters.open,
+            "close": delimiters.close,
+            "ask": delimiters.ask.rawValue
+        ] as [String: Any]
+        root["notify"] = notify
+        root["launch_at_login"] = launchAtLogin
+
+        let yaml = try Yams.dump(object: root)
+        try yaml.write(to: url, atomically: true, encoding: .utf8)
     }
 
     mutating func resolveAPIKey() {
@@ -159,6 +217,7 @@ struct AppConfig: Equatable {
             }
         }
         if let n = root["notify"] as? Bool { c.notify = n }
+        if let l = root["launch_at_login"] as? Bool { c.launchAtLogin = l }
         return c
     }
 }
