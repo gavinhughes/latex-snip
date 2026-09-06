@@ -8,8 +8,8 @@ cd "$ROOT"
 DMG="$ROOT/dist/LaTeXSnip-${VERSION}.dmg"
 SHA=$(shasum -a 256 "$DMG" | awk '{print $1}')
 # Update cask sha
-sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "$ROOT/homebrew/Casks/latex-snip.rb"
-sed -i '' "s/sha256 .*/sha256 \"${SHA}\"/" "$ROOT/homebrew/Casks/latex-snip.rb"
+sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "$ROOT/Casks/latex-snip.rb"
+sed -i '' "s/sha256 .*/sha256 \"${SHA}\"/" "$ROOT/Casks/latex-snip.rb"
 echo "Creating GitHub release v${VERSION}…"
 gh release create "v${VERSION}" "$DMG" "$DMG.sha256" \
   --title "LaTeX Snip ${VERSION}" \

@@ -32,7 +32,7 @@ brew tap gavinhughes/latex-snip https://github.com/gavinhughes/latex-snip
 brew install --cask latex-snip
 ```
 
-(Or `brew install --cask ./homebrew/Casks/latex-snip.rb` from a checkout.)
+(Or `brew install --cask ./Casks/latex-snip.rb` from a checkout.)
 
 ### From source
 
