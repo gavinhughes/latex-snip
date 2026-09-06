@@ -45,10 +45,7 @@ struct LatexSnipApp: App {
             Text("Hotkey \(controller.config.hotkey.summary)")
                 .foregroundStyle(.secondary)
                 .onAppear { controller.refreshHotkeyStatus() }
-            if controller.config.hotkey.enabled && !controller.accessibilityTrusted {
-                Text("Needs Accessibility permission")
-                    .foregroundStyle(.orange)
-            } else if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
+            if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
                 Text("Hotkey not registered")
                     .foregroundStyle(.orange)
             }

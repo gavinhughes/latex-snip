@@ -34,12 +34,8 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                if controller.config.hotkey.enabled && !controller.accessibilityTrusted {
-                    Text("Accessibility is off. After a Homebrew reinstall, allow LaTeX Snip in Privacy & Security → Accessibility. If you just allowed it, quit and reopen the app.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                } else if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
-                    Text("Hotkey is not registered. Click Enable Accessibility or Save to retry.")
+                if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
+                    Text("Hotkey is not registered. Use Enable Accessibility… or Save to retry. (AX trust can stay false on ad-hoc builds even when the hotkey works.)")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }

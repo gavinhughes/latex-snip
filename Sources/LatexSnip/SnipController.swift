@@ -77,7 +77,7 @@ final class SnipController: ObservableObject {
         hotkey?.start()
         refreshHotkeyStatus()
         if config.hotkey.enabled, !hotkeyRegistered {
-            status = accessibilityTrusted ? "Hotkey not registered" : "Hotkey needs Accessibility"
+            status = "Hotkey not registered"
         }
     }
 
