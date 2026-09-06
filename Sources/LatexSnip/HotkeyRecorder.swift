@@ -6,12 +6,15 @@ import Carbon
 struct HotkeyRecorder: NSViewRepresentable {
     @Binding var hotkey: AppConfig.Hotkey
     var onRecordingChange: ((Bool) -> Void)?
+    /// Called with the new shortcut as soon as one is captured (before Save).
+    var onCommit: ((AppConfig.Hotkey) -> Void)?
 
     func makeNSView(context: Context) -> RecorderView {
         let view = RecorderView()
         view.hotkey = hotkey
         view.onChange = { hotkey = $0 }
         view.onRecordingChange = onRecordingChange
+        view.onCommit = onCommit
         return view
     }
 
@@ -19,6 +22,7 @@ struct HotkeyRecorder: NSViewRepresentable {
         nsView.hotkey = hotkey
         nsView.onChange = { hotkey = $0 }
         nsView.onRecordingChange = onRecordingChange
+        nsView.onCommit = onCommit
         nsView.refreshTitle()
     }
 
@@ -29,6 +33,7 @@ struct HotkeyRecorder: NSViewRepresentable {
         )
         var onChange: ((AppConfig.Hotkey) -> Void)?
         var onRecordingChange: ((Bool) -> Void)?
+        var onCommit: ((AppConfig.Hotkey) -> Void)?
 
         private var recording = false
         private let button = NSButton()
@@ -74,9 +79,8 @@ struct HotkeyRecorder: NSViewRepresentable {
                 super.keyDown(with: event)
                 return
             }
-            // Esc cancels
             if event.keyCode == UInt16(kVK_Escape) {
-                endRecording(save: false)
+                endRecording(committed: nil)
                 return
             }
 
@@ -90,7 +94,6 @@ struct HotkeyRecorder: NSViewRepresentable {
                 NSSound.beep()
                 return
             }
-            // Require at least one modifier so we don't steal plain typing
             guard command || shift || option || control else {
                 NSSound.beep()
                 return
@@ -105,20 +108,22 @@ struct HotkeyRecorder: NSViewRepresentable {
             next.enabled = true
             hotkey = next
             onChange?(next)
-            endRecording(save: true)
+            endRecording(committed: next)
         }
 
         override func resignFirstResponder() -> Bool {
-            if recording { endRecording(save: false) }
+            if recording { endRecording(committed: nil) }
             return super.resignFirstResponder()
         }
 
-        private func endRecording(save: Bool) {
+        private func endRecording(committed: AppConfig.Hotkey?) {
             recording = false
+            if let committed {
+                onCommit?(committed)
+            }
             onRecordingChange?(false)
             refreshTitle()
             window?.makeFirstResponder(nil)
-            _ = save
         }
 
         private static func letter(forKeyCode code: Int) -> String? {

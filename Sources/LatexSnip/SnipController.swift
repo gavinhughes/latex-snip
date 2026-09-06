@@ -68,17 +68,31 @@ final class SnipController: ObservableObject {
         }
     }
 
-    func installHotkey() {
+    func installHotkey(using override: AppConfig.Hotkey? = nil) {
         hotkeyPausedForRecording = false
+        let hk = override ?? config.hotkey
+        if let override {
+            config.hotkey = override
+        }
         hotkey?.stop()
-        hotkey = HotkeyMonitor(config: config.hotkey) { [weak self] in
+        hotkey = HotkeyMonitor(config: hk) { [weak self] in
             Task { @MainActor in self?.snip() }
         }
         hotkey?.start()
         refreshHotkeyStatus()
-        if config.hotkey.enabled, !hotkeyRegistered {
+        if hk.enabled, !hotkeyRegistered {
             status = "Hotkey not registered"
+        } else if hk.enabled, hotkeyRegistered {
+            status = "Hotkey \(hk.summary)"
         }
+    }
+
+    /// Persist + activate a newly recorded shortcut immediately.
+    func adoptRecordedHotkey(_ hk: AppConfig.Hotkey) {
+        config.hotkey = hk
+        try? config.save()
+        installHotkey(using: hk)
+        status = "Hotkey \(hk.summary)"
     }
 
     func refreshHotkeyStatus() {
@@ -103,8 +117,7 @@ final class SnipController: ObservableObject {
         hotkey?.stop()
     }
 
-    /// Restore the saved hotkey after the Settings recorder finishes.
-    /// Always reinstall — a new draft combo is not live until Save.
+    /// Reinstall the current config hotkey after recording ends or cancels.
     func resumeHotkey() {
         installHotkey()
     }

@@ -20,15 +20,24 @@ struct SettingsView: View {
                 Toggle("Enable global hotkey", isOn: $draft.hotkey.enabled)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Shortcut")
-                    HotkeyRecorder(hotkey: $draft.hotkey) { recording in
-                        recordingHotkey = recording
-                        if recording {
-                            controller.pauseHotkey()
-                        } else {
-                            // Restore the saved hotkey. A new combo is live only after Save.
-                            controller.resumeHotkey()
+                    HotkeyRecorder(
+                        hotkey: $draft.hotkey,
+                        onRecordingChange: { recording in
+                            if recording {
+                                recordingHotkey = true
+                                controller.pauseHotkey()
+                            } else if recordingHotkey {
+                                // Esc/cancel (no onCommit). Restore previous live hotkey.
+                                recordingHotkey = false
+                                controller.resumeHotkey()
+                            }
+                        },
+                        onCommit: { hk in
+                            recordingHotkey = false
+                            draft.hotkey = hk
+                            controller.adoptRecordedHotkey(hk)
                         }
-                    }
+                    )
                     .frame(maxWidth: 220)
                     Text("Click the box, then press the keys (e.g. ⌘⇧L). Esc cancels.")
                         .font(.caption)
