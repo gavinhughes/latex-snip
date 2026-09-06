@@ -25,8 +25,8 @@ struct SettingsView: View {
                         if recording {
                             controller.pauseHotkey()
                         } else {
-                            // stay paused until Save reapplies, or resume old
-                            controller.resumeHotkeyIfUnchanged(draft.hotkey)
+                            // Restore the saved hotkey. A new combo is live only after Save.
+                            controller.resumeHotkey()
                         }
                     }
                     .frame(maxWidth: 220)
@@ -34,11 +34,21 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Button("Open Accessibility Settings…") {
-                    // Open settings only — do not force the system prompt every time
+                if controller.config.hotkey.enabled && !controller.accessibilityTrusted {
+                    Text("Accessibility is off. After a Homebrew reinstall, allow LaTeX Snip in Privacy & Security → Accessibility. If you just allowed it, quit and reopen the app.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
+                    Text("Hotkey is not registered. Click Enable Accessibility or Save to retry.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Button("Enable Accessibility…") {
+                    HotkeyMonitor.ensureAccessibility(prompt: true)
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                         NSWorkspace.shared.open(url)
                     }
+                    controller.installHotkey()
                 }
             }
 
@@ -69,6 +79,13 @@ struct SettingsView: View {
             Section("General") {
                 Toggle("Launch at login", isOn: $draft.launchAtLogin)
                 Toggle("Show notification after snip", isOn: $draft.notify)
+                Toggle("Show Dock icon", isOn: $draft.showDockIcon)
+                    .onChange(of: draft.showDockIcon) { _, show in
+                        SettingsWindow.previewDockVisibility(show)
+                    }
+                Text("Off by default. The menu-bar icon stays available either way.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if let loginError {
                     Text(loginError)
                         .foregroundStyle(.red)
@@ -100,6 +117,10 @@ struct SettingsView: View {
         .onAppear {
             draft = controller.config
             draft.launchAtLogin = LoginItem.isEnabled || draft.launchAtLogin
+            controller.refreshHotkeyStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            controller.refreshHotkeyIfNeeded()
         }
     }
 
@@ -128,6 +149,7 @@ struct SettingsView: View {
             loginError = "Launch at login: \(error.localizedDescription). Keep the app in /Applications."
         }
 
+        SettingsWindow.commitDockVisibility(draft.showDockIcon)
         controller.applyConfig(draft)
         savedFlash = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { savedFlash = false }

@@ -57,6 +57,7 @@ Build a DMG locally: `./scripts/package-dmg.sh` → `dist/LaTeXSnip-*.dmg`.
 Then:
 
 1. Menu bar **ƒ** → **Enable Accessibility…** and allow **LaTeX Snip**
+   (macOS forgets this after a Homebrew reinstall — grant it again, then quit and reopen if the hotkey still does not fire)
 2. Allow **Screen Recording** when prompted (or System Settings → Privacy)
 3. Press `⌘⇧L` or **Snip formula**
 
@@ -64,9 +65,10 @@ Then:
 
 Menu bar **ƒ** → **Settings…** (or `⌘,`):
 
-- Hotkey modifiers + key
+- Hotkey modifiers + key (and an Accessibility warning if the hotkey is blocked)
 - Delimiter preset / ask before or after
 - Launch at login
+- Show Dock icon (off by default; menu-bar icon stays either way)
 - LLM base URL + model
 
 Changes save to `~/.config/latex-snip/config.yaml`.
@@ -92,6 +94,7 @@ delimiters:
   ask: none
 
 notify: true
+show_dock_icon: false
 ```
 
 ### Authinfo

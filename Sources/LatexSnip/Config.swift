@@ -67,6 +67,8 @@ struct AppConfig: Equatable {
     var delimiters: DelimiterSettings
     var notify: Bool
     var launchAtLogin: Bool
+    /// When false (default), stay a menu-bar extra with no Dock icon.
+    var showDockIcon: Bool
 
     static var configDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -104,7 +106,8 @@ struct AppConfig: Equatable {
                 ask: .none
             ),
             notify: true,
-            launchAtLogin: false
+            launchAtLogin: false,
+            showDockIcon: false
         )
     }
 
@@ -151,6 +154,7 @@ struct AppConfig: Equatable {
         ] as [String: Any]
         root["notify"] = notify
         root["launch_at_login"] = launchAtLogin
+        root["show_dock_icon"] = showDockIcon
 
         let yaml = try Yams.dump(object: root)
         try yaml.write(to: url, atomically: true, encoding: .utf8)
@@ -218,6 +222,7 @@ struct AppConfig: Equatable {
         }
         if let n = root["notify"] as? Bool { c.notify = n }
         if let l = root["launch_at_login"] as? Bool { c.launchAtLogin = l }
+        if let d = root["show_dock_icon"] as? Bool { c.showDockIcon = d }
         return c
     }
 }

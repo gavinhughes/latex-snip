@@ -18,3 +18,4 @@ delimiters:
   ask: none
 
 notify: true
+show_dock_icon: false

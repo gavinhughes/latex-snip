@@ -7,29 +7,59 @@ final class SnipController: ObservableObject {
     @Published var isBusy = false
     @Published var config: AppConfig
     @Published var lastError: String?
+    @Published var accessibilityTrusted = false
+    @Published var hotkeyRegistered = false
 
     private var hotkey: HotkeyMonitor?
+    /// True while the Settings recorder has stopped the live hotkey.
+    private var hotkeyPausedForRecording = false
+    private var observers: [NSObjectProtocol] = []
 
     init() {
         self.config = (try? AppConfig.load()) ?? .default
         LoginItem.syncFromConfig(config.launchAtLogin)
         DispatchQueue.main.async { [weak self] in
+            self?.applyDockVisibility()
             self?.installHotkey()
         }
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSApplication.didFinishLaunchingNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.applyDockVisibility()
+                self?.installHotkey()
+            }
+        })
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshHotkeyIfNeeded()
+            }
+        })
     }
 
     func applyConfig(_ newConfig: AppConfig) {
-        let hotkeyChanged = newConfig.hotkey != config.hotkey
         config = newConfig
-        if hotkeyChanged {
-            installHotkey()
-        }
+        applyDockVisibility()
+        // Always re-register — Save is also how a newly granted Accessibility
+        // permission takes effect, and recording may have paused the hotkey.
+        installHotkey()
         status = "Settings saved"
+    }
+
+    func applyDockVisibility() {
+        ActivationPolicy.apply(showDockIcon: config.showDockIcon)
     }
 
     func reloadConfig() {
         do {
             config = try AppConfig.load()
+            applyDockVisibility()
             status = "Config reloaded"
             installHotkey()
         } catch {
@@ -39,22 +69,44 @@ final class SnipController: ObservableObject {
     }
 
     func installHotkey() {
+        hotkeyPausedForRecording = false
         hotkey?.stop()
         hotkey = HotkeyMonitor(config: config.hotkey) { [weak self] in
             Task { @MainActor in self?.snip() }
         }
         hotkey?.start()
+        refreshHotkeyStatus()
+        if config.hotkey.enabled, !hotkeyRegistered {
+            status = accessibilityTrusted ? "Hotkey not registered" : "Hotkey needs Accessibility"
+        }
+    }
+
+    func refreshHotkeyStatus() {
+        accessibilityTrusted = HotkeyMonitor.ensureAccessibility(prompt: false)
+        hotkeyRegistered = hotkey?.isActive ?? false
+    }
+
+    /// Re-register if the hotkey should be live but is not (e.g. returning
+    /// from System Settings after granting Accessibility).
+    func refreshHotkeyIfNeeded() {
+        guard !hotkeyPausedForRecording else { return }
+        let wasTrusted = accessibilityTrusted
+        refreshHotkeyStatus()
+        guard config.hotkey.enabled else { return }
+        if !hotkeyRegistered || (!wasTrusted && accessibilityTrusted) {
+            installHotkey()
+        }
     }
 
     func pauseHotkey() {
+        hotkeyPausedForRecording = true
         hotkey?.stop()
     }
 
-    func resumeHotkeyIfUnchanged(_ draftHotkey: AppConfig.Hotkey) {
-        // If user cancelled recording without Save, restore active hotkey
-        if draftHotkey == config.hotkey {
-            installHotkey()
-        }
+    /// Restore the saved hotkey after the Settings recorder finishes.
+    /// Always reinstall — a new draft combo is not live until Save.
+    func resumeHotkey() {
+        installHotkey()
     }
 
     func setPreset(_ preset: DelimiterPreset) {
