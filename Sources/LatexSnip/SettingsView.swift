@@ -35,12 +35,11 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
-                    Text("Hotkey is not registered. Use Enable Accessibility… or Save to retry. (AX trust can stay false on ad-hoc builds even when the hotkey works.)")
+                    Text("Hotkey is not registered. Open Accessibility Settings… or Save to retry.")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
-                Button("Enable Accessibility…") {
-                    HotkeyMonitor.ensureAccessibility(prompt: true)
+                Button("Open Accessibility Settings…") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                         NSWorkspace.shared.open(url)
                     }

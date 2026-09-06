@@ -1,13 +1,11 @@
 import SwiftUI
 import AppKit
-import ApplicationServices
 
 @main
 struct LatexSnipApp: App {
     @StateObject private var controller = SnipController()
 
     init() {
-        // Hidden until SnipController applies `show_dock_icon` from config.
         NSApplication.shared.setActivationPolicy(.accessory)
         Notifier.requestPermission()
     }
@@ -43,14 +41,12 @@ struct LatexSnipApp: App {
             Divider()
 
             Text("Hotkey \(controller.config.hotkey.summary)")
-                .foregroundStyle(.secondary)
                 .onAppear { controller.refreshHotkeyStatus() }
             if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
                 Text("Hotkey not registered")
                     .foregroundStyle(.orange)
             }
             Text(controller.status)
-                .foregroundStyle(.secondary)
             if let err = controller.lastError {
                 Text(err)
                     .font(.caption)
@@ -64,8 +60,10 @@ struct LatexSnipApp: App {
                 SettingsWindow.show(controller: controller)
             }
 
-            Button("Enable Accessibility…") {
-                HotkeyMonitor.ensureAccessibility(prompt: true)
+            Button("Open Accessibility Settings…") {
+                // Do not call AXIsProcessTrustedWithOptions(prompt: true).
+                // That Accessibility Access sheet stays on screen while you
+                // toggle the grant in System Settings.
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
                     NSWorkspace.shared.open(url)
                 }
