@@ -11,6 +11,19 @@ cask "latex-snip" do
 
   app "LaTeX Snip.app"
 
+  # Unsigned builds download with Gatekeeper quarantine; macOS then claims the
+  # app is "damaged". Clear quarantine after install so it can launch.
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-cr", "#{appdir}/LaTeX Snip.app"]
+  end
+
+  caveats <<~EOS
+    LaTeX Snip is not notarized yet. If macOS says the app is damaged after a
+    manual DMG install, run:
+      xattr -cr "/Applications/LaTeX Snip.app"
+  EOS
+
   zap trash: [
     "~/.config/latex-snip",
   ]

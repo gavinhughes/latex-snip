@@ -25,6 +25,12 @@ Lightweight Mathpix-style snip. Works with **OpenRouter**, **Ollama**, **LM Stud
 
 Download the latest `.dmg` from [Releases](https://github.com/gavinhughes/latex-snip/releases), open it, drag **LaTeX Snip** to Applications.
 
+The release build is not notarized yet. If macOS says the app is **damaged**, it is Gatekeeper quarantine — clear it with:
+
+```bash
+xattr -cr "/Applications/LaTeX Snip.app"
+```
+
 ### Homebrew
 
 Homebrew 6+ requires trusting a third-party tap before its casks load:
