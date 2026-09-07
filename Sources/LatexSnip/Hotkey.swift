@@ -27,7 +27,20 @@ final class HotkeyMonitor {
         return AXIsProcessTrusted()
     }
 
-    private(set) var isActive = false
+    /// True when a system-wide path can deliver events: Carbon registration
+    /// succeeded, and/or the NSEvent global monitor is actually live.
+    ///
+    /// `AXIsProcessTrusted()` is often false for ad-hoc signed builds even when
+    /// Carbon `RegisterEventHotKey` is firing. The NSEvent monitor object can
+    /// exist without Accessibility, but macOS will not deliver events then — so
+    /// that path only counts as live when AX is trusted.
+    var isActive: Bool { carbonLive || nseventLive }
+
+    private var carbonLive: Bool { hotKeyRef != nil }
+
+    private var nseventLive: Bool {
+        globalMonitor != nil && Self.ensureAccessibility(prompt: false)
+    }
 
     func start() {
         stop()
@@ -78,8 +91,13 @@ final class HotkeyMonitor {
         NSLog("latex-snip: globalMonitor=%@ ax=%d", String(describing: globalMonitor != nil), ax ? 1 : 0)
 
         startCarbon(keyCode: keyCode)
-        // Consider registered only when AX is trusted AND monitor exists.
-        isActive = ax && (globalMonitor != nil)
+        NSLog(
+            "latex-snip: isActive=%d carbon=%d nsevent=%d ax=%d",
+            isActive ? 1 : 0,
+            carbonLive ? 1 : 0,
+            nseventLive ? 1 : 0,
+            ax ? 1 : 0
+        )
     }
 
     private func startCarbon(keyCode: UInt32) {
@@ -154,7 +172,6 @@ final class HotkeyMonitor {
             RemoveEventHandler(handler)
             handlerRef = nil
         }
-        isActive = false
     }
 
     private static func keyCode(for letter: String) -> UInt32? {
