@@ -15,6 +15,7 @@ final class ConfigTests: XCTestCase {
         c.models.offline.llm.authinfoEnabled = true
         c.models.offline.llm.apiKeyEnv = "LOCAL_KEY"
         c.models.preferred = .offline
+        c.models.builtinEnabled = false
         c.hotkey = .init(enabled: false, keyEquivalent: "k", command: false, shift: true, option: true, control: true)
         c.delimiters = .init(preset: .custom, open: "<<", close: ">>", ask: .after)
         c.notify = false
@@ -99,6 +100,22 @@ final class ConfigTests: XCTestCase {
             .appendingPathComponent("config.example.yaml")
         let c = try AppConfig.load(from: example)
         XCTAssertEqual(c, .default)
+    }
+
+    func testBuiltinDefaultsOnForOlderConfigs() throws {
+        let c = try AppConfig.parse(yaml: "models:\n  order: [offline, online]\n  offline:\n    enabled: true\n")
+        XCTAssertTrue(c.models.builtinEnabled)
+        XCTAssertEqual(c.models.enginesInOrder, [.builtin, .offline, .online])
+    }
+
+    func testBuiltinCanBeTurnedOff() throws {
+        let url = try makeTempDir(self).appendingPathComponent("config.yaml")
+        var c = AppConfig.default
+        c.models.builtinEnabled = false
+        try c.save(to: url)
+        XCTAssertTrue(try String(contentsOf: url, encoding: .utf8).contains("builtin:"))
+        XCTAssertFalse(try AppConfig.load(from: url).models.builtinEnabled)
+        XCTAssertFalse(try AppConfig.parse(yaml: "models:\n  builtin:\n    enabled: false\n").models.builtinEnabled)
     }
 
     func testOrderAndLegacyPreferred() throws {

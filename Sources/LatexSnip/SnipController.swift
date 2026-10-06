@@ -16,6 +16,8 @@ final class SnipController: ObservableObject {
     @Published var configLoadError: String?
 
     private var hotkey: HotkeyMonitor?
+    /// The bundled Texo model, loaded once on first use (or preloaded).
+    private let texo = TexoLoader(directory: SnipController.texoDirectory)
     /// True while the Settings recorder has stopped the live hotkey.
     private var hotkeyPausedForRecording = false
     private var observers: [NSObjectProtocol] = []
@@ -31,6 +33,7 @@ final class SnipController: ObservableObject {
             lastError = error.localizedDescription
             status = "Config error"
         }
+        preloadBuiltinModel()
         DispatchQueue.main.async { [weak self] in
             self?.applyDockVisibility()
             self?.installHotkey()
@@ -58,11 +61,29 @@ final class SnipController: ObservableObject {
 
     func applyConfig(_ newConfig: AppConfig) {
         config = newConfig
+        preloadBuiltinModel()
         applyDockVisibility()
         // Always re-register — Save is also how a newly granted Accessibility
         // permission takes effect, and recording may have paused the hotkey.
         installHotkey()
         status = "Settings saved"
+    }
+
+    /// `Contents/Resources/Texo` in the app bundle; `LATEX_SNIP_TEXO_DIR`
+    /// overrides it (e.g. `swift run` with Models/Texo from fetch-model.sh).
+    nonisolated static func texoDirectory() -> URL? {
+        if let dir = ProcessInfo.processInfo.environment["LATEX_SNIP_TEXO_DIR"], !dir.isEmpty {
+            return URL(fileURLWithPath: dir)
+        }
+        guard let dir = Bundle.main.resourceURL?.appendingPathComponent("Texo"),
+              FileManager.default.fileExists(atPath: dir.path) else { return nil }
+        return dir
+    }
+
+    /// Load the model in the background so the first snip isn't slowed by it.
+    private func preloadBuiltinModel() {
+        guard config.models.builtinEnabled else { return }
+        Task.detached(priority: .utility) { [texo] in _ = try? texo.load() }
     }
 
     func applyDockVisibility() {
@@ -214,14 +235,16 @@ final class SnipController: ObservableObject {
 
             status = "Recognizing…"
             do {
-                let result = try await LLMClient.recognize(imageURL: imageURL, models: cfg.models)
+                let result = try await Recognizer.recognize(imageURL: imageURL, models: cfg.models) { [texo] url in
+                    try texo.load().recognize(imageAt: url)
+                }
                 let out = Delimiters.wrap(result.latex, open: cfg.delimiters.open, close: cfg.delimiters.close)
                 Notifier.copyToPasteboard(out)
                 if cfg.notify {
                     let preview = out.count > 120 ? String(out.prefix(117)) + "…" : out
                     Notifier.post(title: "LaTeX Snip", body: preview)
                 }
-                status = "Copied (\(result.slot.label))"
+                status = "Copied (\(result.engine.label))"
             } catch {
                 lastError = error.localizedDescription
                 status = "Error"

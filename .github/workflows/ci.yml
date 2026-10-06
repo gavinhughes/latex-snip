@@ -19,6 +19,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Toolchain
         run: swift --version
+      - name: Cache built-in model
+        uses: actions/cache@v4
+        with:
+          path: Models
+          key: texo-${{ hashFiles('scripts/fetch-model.sh') }}
+      - name: Fetch built-in model
+        run: ./scripts/fetch-model.sh
       - name: Build
         run: swift build
       - name: Test
