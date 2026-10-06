@@ -137,4 +137,8 @@ When Settings changes a slot's base URL to a different host, that slot's `api_ke
 
 ## License
 
-MIT
+Copyright (C) 2026 Gavin Hughes
+
+LaTeX Snip is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
+
+Releases up to and including v0.4.0 were published under the MIT License.

@@ -1,6 +1,6 @@
 # Contributing
 
-PRs welcome.
+PRs welcome. By contributing, you agree that your contributions are licensed under the [GNU AGPL v3.0 or later](LICENSE), the same license as the project.
 
 ## Dev
 
