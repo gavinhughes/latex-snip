@@ -1,5 +1,7 @@
 # LaTeX Snip
 
+[![CI](https://github.com/gavinhughes/latex-snip/actions/workflows/ci.yml/badge.svg)](https://github.com/gavinhughes/latex-snip/actions/workflows/ci.yml)
+
 Native **macOS menu-bar** app: hotkey → region screenshot → OpenAI-compatible vision LLM → delimited LaTeX on the clipboard.
 
 Lightweight Mathpix-style snip. Works with **OpenRouter**, **Ollama**, **LM Studio**, or any chat-completions endpoint that accepts images.
@@ -55,6 +57,19 @@ open "/Applications/LaTeX Snip.app"
 
 Build a DMG locally: `./scripts/package-dmg.sh` → `dist/LaTeXSnip-*.dmg`.
 
+To keep Screen Recording and Accessibility across rebuilds, create a local signing certificate once before installing:
+
+```bash
+./scripts/create-signing-cert.sh
+```
+
+Without it the app is signed ad-hoc, and macOS treats every rebuild as a new app, so both permissions have to be granted again. If you installed ad-hoc before, quit the app and reset the old entries once:
+
+```bash
+tccutil reset ScreenCapture com.gavinhughes.latex-snip
+tccutil reset Accessibility com.gavinhughes.latex-snip
+```
+
 Then:
 
 1. Menu bar **ƒ** → **Enable Accessibility…** and allow **LaTeX Snip**
@@ -106,13 +121,19 @@ show_dock_icon: false
 
 An older `llm:` block still loads as **Online** (enabled). Saving Settings rewrites the file as `models:`.
 
+Each slot also accepts `api_key`, `system_prompt`, `timeout_s`, `temperature`, and `authinfo` (`true`, `false`, or `{machine: …, login: …}`); all of them are kept when the app saves. Saving rewrites the whole file, so comments and unrecognised keys are dropped.
+
+If the file can't be read (bad YAML, or a wrong value such as `preset: bogus`), the menu shows **Config error** and Settings shows the exact problem while the app runs on defaults. Fix the file and choose **Reload config**, or save from the app: the unreadable file is first copied to `config.yaml.bak`.
+
 ### Authinfo
 
 ```
 machine openrouter.ai login apikey password sk-or-…
 ```
 
-Lookup is per slot: `api_key` → `$api_key_env` / `$LATEX_SNIP_API_KEY` → `~/.authinfo` (when that slot has a key env or authinfo enabled). Offline defaults are keyless.
+The key is looked up for every request, per slot: `api_key` → `$api_key_env` → `$LATEX_SNIP_API_KEY` (only when `api_key_env` is set) → `~/.authinfo` entry for the slot's current host (when authinfo is enabled). Offline defaults are keyless. Keys found in the environment or authinfo are never written to `config.yaml`.
+
+When Settings changes a slot's base URL to a different host, that slot's `api_key`, `api_key_env` and authinfo `machine` are cleared, so the old provider's key isn't sent to the new one; the key then comes from `~/.authinfo` for the new host.
 
 ## License
 
