@@ -87,4 +87,43 @@ final class LatexCleanupTests: XCTestCase {
             #"\begin{vmatrix}a&b\end{vmatrix}"#
         )
     }
+
+    /// Regression: `\cfrac{\mathrm{d}z}{z}` lost its numerator braces because
+    /// `\cfrac` wasn't a known argument-taking command.
+    func testArgumentsOfUnlistedCommandsKeepTheirBraces() {
+        XCTAssertEqual(
+            LatexCleanup.tidy(#"\int _ { a } ^ { b } { \cfrac { \mathrm { d } z } { z } } = \log b - \log a"#),
+            #"\int_{a}^{b}\frac{\mathrm{d}z}{z}=\log b-\log a"#
+        )
+        XCTAssertEqual(LatexCleanup.tidy(#"\boxed { \frac { a } { b } }"#), #"\boxed{\frac{a}{b}}"#)
+        XCTAssertEqual(LatexCleanup.tidy(#"\overrightarrow { \mathrm { A B } }"#), #"\overrightarrow{\mathrm{AB}}"#)
+        XCTAssertEqual(LatexCleanup.tidy(#"\textcircled { \mathrm { a } }"#), #"\textcircled{\mathrm{a}}"#)
+    }
+
+    func testContinuedFractionKeepsCfrac() {
+        XCTAssertEqual(
+            LatexCleanup.tidy(#"x = \cfrac { 1 } { 1 + \cfrac { 1 } { x } }"#),
+            #"x=\cfrac{1}{1+\cfrac{1}{x}}"#
+        )
+    }
+
+    /// Every command Texo can emit: braces after it are kept unless it's known
+    /// to take no argument, in which case a redundant group is removed.
+    func testEveryVocabularyCommand() throws {
+        struct File: Decodable { struct Model: Decodable { var vocab: [String: Int] }; var model: Model }
+        let url = try texoModelDirectory().appendingPathComponent("tokenizer.json")
+        let vocab = try JSONDecoder().decode(File.self, from: Data(contentsOf: url)).model.vocab.keys
+        let commands = vocab.filter { LatexCleanup.isControlWord($0) }
+        XCTAssertGreaterThan(commands.count, 500)
+        for command in commands {
+            let name = String(command.dropFirst())
+            let shown = LatexCleanup.katexOnly[name] ?? name
+            let out = LatexCleanup.tidy("\(command) { \\frac { a } { b } }")
+            if LatexCleanup.takesNoArguments.contains(shown) {
+                XCTAssertEqual(out, "\\\(shown)\\frac{a}{b}", command)
+            } else {
+                XCTAssertTrue(out.hasSuffix("{\\frac{a}{b}}"), "\(command) → \(out)")
+            }
+        }
+    }
 }
