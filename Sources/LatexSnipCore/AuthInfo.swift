@@ -1,7 +1,7 @@
 import Foundation
 
-enum AuthInfo {
-    static var defaultPaths: [URL] {
+public enum AuthInfo {
+    public static var defaultPaths: [URL] {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return [
             home.appendingPathComponent(".authinfo"),
@@ -9,7 +9,7 @@ enum AuthInfo {
         ]
     }
 
-    static func lookupPassword(
+    public static func lookupPassword(
         machine: String? = nil,
         login: String? = "apikey",
         baseURL: String? = nil,

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import ServiceManagement
+import LatexSnipCore
 
 struct SettingsView: View {
     @ObservedObject var controller: SnipController
@@ -16,6 +17,18 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            if let configError = controller.configLoadError {
+                Section("Config error") {
+                    Text(configError)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                    Text("Showing defaults. Fix config.yaml and choose Reload config, or Save here to replace it (the current file is kept as config.yaml.bak).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Hotkey") {
                 Toggle("Enable global hotkey", isOn: $draft.hotkey.enabled)
                 VStack(alignment: .leading, spacing: 6) {
@@ -177,9 +190,14 @@ struct SettingsView: View {
             draft.delimiters.open = pair.0
             draft.delimiters.close = pair.1
         }
+        for id in AppConfig.ModelSlotID.allCases {
+            draft.models[id].llm.dropHostBoundCredentials(
+                ifHostChangedFrom: controller.config.models[id].llm.baseURL
+            )
+        }
 
         do {
-            try draft.save()
+            try controller.persist(draft)
         } catch {
             loginError = error.localizedDescription
             return
@@ -217,7 +235,7 @@ struct SettingsView: View {
     private var onlineNotes: String {
         let env = draft.models.online.llm.apiKeyEnv
         if env.isEmpty {
-            return "Cloud / remote OpenAI-compatible API. Key from ~/.authinfo or $LATEX_SNIP_API_KEY."
+            return "Cloud / remote OpenAI-compatible API. Key from ~/.authinfo for this host."
         }
         return "Cloud / remote OpenAI-compatible API. Key from $\(env) or ~/.authinfo."
     }

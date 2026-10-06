@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import LatexSnipCore
 
 @MainActor
 final class SnipController: ObservableObject {
@@ -9,6 +10,10 @@ final class SnipController: ObservableObject {
     @Published var lastError: String?
     @Published var accessibilityTrusted = false
     @Published var hotkeyRegistered = false
+    /// Set when config.yaml exists but couldn't be parsed. The in-memory
+    /// config is then defaults (or the last good config), so the next save
+    /// backs the file up to config.yaml.bak before overwriting it.
+    @Published var configLoadError: String?
 
     private var hotkey: HotkeyMonitor?
     /// True while the Settings recorder has stopped the live hotkey.
@@ -16,8 +21,16 @@ final class SnipController: ObservableObject {
     private var observers: [NSObjectProtocol] = []
 
     init() {
-        self.config = (try? AppConfig.load()) ?? .default
-        LoginItem.syncFromConfig(config.launchAtLogin)
+        do {
+            self.config = try AppConfig.load()
+            LoginItem.syncFromConfig(config.launchAtLogin)
+        } catch {
+            // Don't sync the login item from defaults; the file may say otherwise.
+            self.config = .default
+            configLoadError = error.localizedDescription
+            lastError = error.localizedDescription
+            status = "Config error"
+        }
         DispatchQueue.main.async { [weak self] in
             self?.applyDockVisibility()
             self?.installHotkey()
@@ -44,9 +57,7 @@ final class SnipController: ObservableObject {
     }
 
     func applyConfig(_ newConfig: AppConfig) {
-        var cfg = newConfig
-        cfg.resolveAPIKeys()
-        config = cfg
+        config = newConfig
         applyDockVisibility()
         // Always re-register — Save is also how a newly granted Accessibility
         // permission takes effect, and recording may have paused the hotkey.
@@ -61,13 +72,22 @@ final class SnipController: ObservableObject {
     func reloadConfig() {
         do {
             config = try AppConfig.load()
+            configLoadError = nil
             applyDockVisibility()
             status = "Config reloaded"
             installHotkey()
         } catch {
+            configLoadError = error.localizedDescription
             lastError = error.localizedDescription
             status = "Config error"
         }
+    }
+
+    /// All config writes go through here so a file that failed to load is
+    /// backed up rather than silently replaced.
+    func persist(_ cfg: AppConfig) throws {
+        try cfg.save(backupExisting: configLoadError != nil)
+        configLoadError = nil
     }
 
     func installHotkey(using override: AppConfig.Hotkey? = nil) {
@@ -92,7 +112,7 @@ final class SnipController: ObservableObject {
     /// Persist + activate a newly recorded shortcut immediately.
     func adoptRecordedHotkey(_ hk: AppConfig.Hotkey) {
         config.hotkey = hk
-        try? config.save()
+        try? persist(config)
         installHotkey(using: hk)
         status = "Hotkey \(hk.summary)"
     }
@@ -129,7 +149,7 @@ final class SnipController: ObservableObject {
         let pair = Delimiters.resolve(preset: preset, open: nil, close: nil)
         config.delimiters.open = pair.0
         config.delimiters.close = pair.1
-        try? config.save()
+        try? persist(config)
     }
 
     private func chooseDelimiterInteractively() -> (String, String)? {

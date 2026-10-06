@@ -51,8 +51,17 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 echo -n 'APPL????' > "$APP/Contents/PkgInfo"
-# Stable ad-hoc id matching CFBundleIdentifier so TCC grants survive rebuilds.
-codesign --force --deep --sign - --identifier "com.gavinhughes.latex-snip" "$APP"
+# Sign with a stable certificate so TCC (Screen Recording, Accessibility)
+# grants survive rebuilds. Ad-hoc signatures are keyed to the binary's hash,
+# so every rebuild looks like a new app and needs permissions granted again.
+SIGN_IDENTITY="${SIGN_IDENTITY:-LaTeX Snip Local Signing}"
+if security find-identity -p codesigning | grep -qF "\"$SIGN_IDENTITY\""; then
+  codesign --force --deep --sign "$SIGN_IDENTITY" --identifier "com.gavinhughes.latex-snip" "$APP"
+else
+  echo "warning: signing identity '$SIGN_IDENTITY' not found; signing ad-hoc." >&2
+  echo "warning: permissions will need re-granting after every rebuild." >&2
+  codesign --force --deep --sign - --identifier "com.gavinhughes.latex-snip" "$APP"
+fi
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 echo "Installed $APP ($VERSION)"
 codesign -dv "$APP" 2>&1 | grep -E 'Identifier|Info.plist|Signature' || true

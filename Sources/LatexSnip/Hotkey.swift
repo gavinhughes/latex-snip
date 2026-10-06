@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import Carbon
+import LatexSnipCore
 
 /// Global hotkey: NSEvent monitor (needs Accessibility) + Carbon fallback.
 final class HotkeyMonitor {

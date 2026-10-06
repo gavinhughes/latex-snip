@@ -11,9 +11,17 @@ let package = Package(
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0")
     ],
     targets: [
+        .target(
+            name: "LatexSnipCore",
+            dependencies: ["Yams"]
+        ),
         .executableTarget(
             name: "LatexSnip",
-            dependencies: ["Yams"]
+            dependencies: ["LatexSnipCore"]
+        ),
+        .testTarget(
+            name: "LatexSnipCoreTests",
+            dependencies: ["LatexSnipCore"]
         )
     ]
 )
