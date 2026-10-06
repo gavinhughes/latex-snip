@@ -2,7 +2,8 @@ import Foundation
 
 /// Tidies Texo's raw output (space-separated tokens in KaTeX-normalized style)
 /// into LaTeX a person would write: `x ={\frac{1}{2}}` → `x=\frac{1}{2}`,
-/// `\operatorname*{l i m }` → `\lim`. Every rule keeps the rendering the same.
+/// `\operatorname*{l i m }` → `\lim`. Every rule keeps the rendering the same,
+/// except that a lone `\cfrac` becomes `\frac` (what people type for one fraction).
 public enum LatexCleanup {
     public static func tidy(_ raw: String) -> String {
         var s = joinTokens(raw)
@@ -10,6 +11,7 @@ public enum LatexCleanup {
         s = s.replacingOccurrences(of: "\\!", with: "")
         s = s.replacingOccurrences(of: "~", with: "\\,")
         s = useNamedOperators(s)
+        s = useFracForSingleCfrac(s)
         s = useMatrixEnvironments(s)
         s = removeRedundantBraces(s)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -67,6 +69,16 @@ public enum LatexCleanup {
         }
     }
 
+    /// Texo reads some display fractions as `\cfrac`. One `\cfrac` is just a
+    /// fraction; nested ones are a real continued fraction and stay.
+    static func useFracForSingleCfrac(_ s: String) -> String {
+        let pattern = #"\\cfrac(?![A-Za-z])"#
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              re.numberOfMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length)) == 1
+        else { return s }
+        return replacing(pattern, in: s) { _ in "\\frac" }
+    }
+
     /// `\left(\begin{array}{cc}…\end{array}\right)` → `\begin{pmatrix}…\end{pmatrix}`,
     /// and `\left\{\begin{array}{ll}…\end{array}\right.` → `cases`.
     static func useMatrixEnvironments(_ s: String) -> String {
@@ -89,21 +101,37 @@ public enum LatexCleanup {
 
     /// Commands Texo wraps in an extra group: `={\frac{a}{b}}`.
     static let unwrapStarts = [
-        "\\frac", "\\dfrac", "\\tfrac", "\\sqrt", "\\binom", "\\left", "\\begin", "\\mathrm",
+        "\\frac", "\\dfrac", "\\tfrac", "\\cfrac", "\\sqrt", "\\binom", "\\left", "\\begin", "\\mathrm",
         "\\mathbf", "\\mathit", "\\mathcal", "\\mathbb", "\\hat", "\\bar", "\\tilde", "\\vec",
         "\\overline",
     ]
     /// Accents: a script after the group belongs to the whole group, so keep it.
     static let accents: Set<String> = ["\\hat", "\\bar", "\\tilde", "\\vec", "\\overline"]
 
-    /// Commands whose `{…}` arguments must stay braced.
-    static let takesArguments: Set<String> = [
-        "frac", "dfrac", "tfrac", "sqrt", "binom", "mathrm", "mathbf", "mathit", "mathcal", "mathbb",
-        "mathsf", "mathtt", "mathfrak", "boldsymbol", "text", "textrm", "textbf", "textit",
-        "operatorname", "hat", "bar", "tilde", "vec", "dot", "ddot", "overline", "underline",
-        "overbrace", "underbrace", "widehat", "widetilde", "begin", "end", "stackrel", "overset",
-        "underset", "color", "textcolor", "xrightarrow", "xleftarrow", "pmod", "substack",
-    ]
+    /// Commands known to take no `{…}` argument, so a group right after one is
+    /// not an argument. Any other command keeps the braces that follow it.
+    static let takesNoArguments: Set<String> = Set([
+        // Greek
+        "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta",
+        "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho", "varrho",
+        "sigma", "varsigma", "tau", "upsilon", "phi", "varphi", "chi", "psi", "omega",
+        "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Upsilon", "Phi", "Psi", "Omega",
+        // binary operators
+        "pm", "mp", "times", "div", "cdot", "ast", "star", "circ", "bullet", "cap", "cup", "vee",
+        "wedge", "oplus", "ominus", "otimes", "oslash", "odot", "setminus", "land", "lor",
+        // relations and arrows
+        "leq", "le", "geq", "ge", "neq", "ne", "equiv", "approx", "sim", "simeq", "cong", "propto",
+        "ll", "gg", "in", "notin", "ni", "subset", "subseteq", "supset", "supseteq", "mid",
+        "parallel", "perp", "to", "rightarrow", "leftarrow", "Rightarrow", "Leftarrow",
+        "leftrightarrow", "Leftrightarrow", "longrightarrow", "longleftarrow", "mapsto",
+        "implies", "iff",
+        // symbols and spacing
+        "infty", "partial", "nabla", "prime", "ldots", "cdots", "dots", "vdots", "ddots",
+        "quad", "qquad", "forall", "exists", "neg", "emptyset", "varnothing", "hbar", "ell",
+        // big operators
+        "sum", "prod", "coprod", "int", "iint", "iiint", "oint", "bigcup", "bigcap",
+        "bigoplus", "bigotimes",
+    ]).union(operators)
 
     /// Remove braces that change nothing:
     /// - around a group starting with one of `unwrapStarts` (`={\frac{a}{b}}`),
@@ -153,7 +181,7 @@ public enum LatexCleanup {
             var j = open - 1
             while j >= 0, chars[j].isLetter { j -= 1 }
             guard j >= 0, chars[j] == "\\", !isEscaped(chars, j) else { return true } // plain letters
-            return takesArguments.contains(String(chars[(j + 1)..<open]))
+            return !takesNoArguments.contains(String(chars[(j + 1)..<open]))
         }
         return false
     }

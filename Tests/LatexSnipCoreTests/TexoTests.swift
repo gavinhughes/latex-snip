@@ -2,33 +2,12 @@ import CoreGraphics
 import XCTest
 @testable import LatexSnipCore
 
-/// Models/Texo from scripts/fetch-model.sh (or LATEX_SNIP_TEXO_DIR). Skipped
-/// locally when absent; CI fetches the model, so there it must be present.
-private func texoDirectory() throws -> URL {
-    if let dir = ProcessInfo.processInfo.environment["LATEX_SNIP_TEXO_DIR"], !dir.isEmpty {
-        return URL(fileURLWithPath: dir)
-    }
-    let root = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    let dir = root.appendingPathComponent("Models/Texo")
-    let present = TexoModel.fileNames.allSatisfy {
-        FileManager.default.fileExists(atPath: dir.appendingPathComponent($0).path)
-    }
-    if !present {
-        if ProcessInfo.processInfo.environment["CI"] != nil {
-            XCTFail("Models/Texo missing in CI; run scripts/fetch-model.sh")
-        }
-        throw XCTSkip("Models/Texo not present; run scripts/fetch-model.sh")
-    }
-    return dir
-}
-
 final class TexoModelTests: XCTestCase {
     private static var model: TexoModel?
 
     private func model() throws -> TexoModel {
         if let m = Self.model { return m }
-        let m = try TexoModel(directory: try texoDirectory())
+        let m = try TexoModel(directory: try texoModelDirectory())
         Self.model = m
         return m
     }
@@ -65,7 +44,7 @@ final class TexoModelTests: XCTestCase {
         var dir: URL?
         let loader = TexoLoader { dir }
         XCTAssertThrowsError(try loader.load())
-        dir = try texoDirectory()
+        dir = try texoModelDirectory()
         XCTAssertNoThrow(try loader.load())
     }
 }
