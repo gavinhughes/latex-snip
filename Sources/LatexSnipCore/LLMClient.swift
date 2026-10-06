@@ -1,19 +1,19 @@
 import Foundation
 
-enum LLMClient {
-    struct Error: Swift.Error, LocalizedError {
-        var message: String
-        var errorDescription: String? { message }
+public enum LLMClient {
+    public struct Error: Swift.Error, LocalizedError {
+        public var message: String
+        public var errorDescription: String? { message }
     }
 
-    struct Recognition: Equatable {
-        var latex: String
-        var slot: AppConfig.ModelSlotID
+    public struct Recognition: Equatable {
+        public var latex: String
+        public var slot: AppConfig.ModelSlotID
     }
 
     /// Try enabled slots in preferred order. Network / HTTP / timeout / empty
     /// responses fall through to the next enabled slot. Combined error if all fail.
-    static func recognize(imageURL: URL, models: AppConfig.Models) async throws -> Recognition {
+    public static func recognize(imageURL: URL, models: AppConfig.Models) async throws -> Recognition {
         let attempts = models.enabledInOrder()
         guard !attempts.isEmpty else {
             throw Error(message: "No models enabled. Turn on Online and/or Offline in Settings.")
@@ -36,7 +36,7 @@ enum LLMClient {
         throw Error(message: errors.joined(separator: "\n"))
     }
 
-    static func recognize(imageURL: URL, config: AppConfig.LLM) async throws -> String {
+    public static func recognize(imageURL: URL, config: AppConfig.LLM) async throws -> String {
         guard let base = URL(string: config.baseURL) else {
             throw Error(message: "Invalid base URL")
         }
@@ -49,7 +49,7 @@ enum LLMClient {
         req.httpMethod = "POST"
         req.timeoutInterval = config.timeout
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let key = config.apiKey, !key.isEmpty {
+        if let key = resolveAPIKey(for: config) {
             req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         }
         if config.baseURL.contains("openrouter.ai") {
@@ -108,7 +108,7 @@ enum LLMClient {
         return extractLatex(content)
     }
 
-    private static func extractLatex(_ text: String) -> String {
+    static func extractLatex(_ text: String) -> String {
         var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.hasPrefix("```") {
             let lines = s.components(separatedBy: .newlines)
@@ -124,5 +124,28 @@ enum LLMClient {
             s = String(s.dropFirst(6)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return s
+    }
+
+    /// Resolved for every request from the slot's current base URL, so
+    /// editing the URL in Settings never sends an old host's key to a new one.
+    /// Offline defaults have an empty `apiKeyEnv` and authinfo off, so they
+    /// stay keyless (local Ollama/LM Studio).
+    public static func resolveAPIKey(
+        for llm: AppConfig.LLM,
+        environment env: [String: String] = ProcessInfo.processInfo.environment,
+        authinfoPath: URL? = nil
+    ) -> String? {
+        if let k = llm.apiKey, !k.isEmpty { return k }
+        if !llm.apiKeyEnv.isEmpty {
+            if let v = env[llm.apiKeyEnv], !v.isEmpty { return v }
+            if let v = env["LATEX_SNIP_API_KEY"], !v.isEmpty { return v }
+        }
+        guard llm.authinfoEnabled else { return nil }
+        return AuthInfo.lookupPassword(
+            machine: llm.authinfoMachine,
+            login: llm.authinfoLogin,
+            baseURL: llm.baseURL,
+            path: authinfoPath
+        )
     }
 }

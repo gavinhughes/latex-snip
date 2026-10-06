@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import LatexSnipCore
 
 @main
 struct LatexSnipApp: App {
@@ -40,6 +41,11 @@ struct LatexSnipApp: App {
 
             Divider()
 
+            if controller.configLoadError != nil {
+                Button("Config error — open Settings for details…") {
+                    SettingsWindow.show(controller: controller)
+                }
+            }
             if controller.config.hotkey.enabled && !controller.hotkeyRegistered {
                 Button("Hotkey needs Accessibility — open Settings…") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {

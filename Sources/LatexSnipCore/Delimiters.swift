@@ -1,6 +1,6 @@
 import Foundation
 
-enum DelimiterPreset: String, CaseIterable, Identifiable {
+public enum DelimiterPreset: String, CaseIterable, Identifiable, Codable {
     case none
     case inlineDollar = "inline_dollar"
     case displayDollar = "display_dollar"
@@ -8,9 +8,9 @@ enum DelimiterPreset: String, CaseIterable, Identifiable {
     case displayBracket = "display_bracket"
     case custom
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var label: String {
+    public var label: String {
         switch self {
         case .none: return "none"
         case .inlineDollar: return "$ … $"
@@ -21,7 +21,7 @@ enum DelimiterPreset: String, CaseIterable, Identifiable {
         }
     }
 
-    var pair: (String, String) {
+    public var pair: (String, String) {
         switch self {
         case .none: return ("", "")
         case .inlineDollar: return ("$", "$")
@@ -33,28 +33,28 @@ enum DelimiterPreset: String, CaseIterable, Identifiable {
     }
 }
 
-enum Delimiters {
-    static func resolve(preset: DelimiterPreset, open: String?, close: String?) -> (String, String) {
+public enum Delimiters {
+    public static func resolve(preset: DelimiterPreset, open: String?, close: String?) -> (String, String) {
         if preset == .custom {
             return (open ?? "", close ?? "")
         }
         return preset.pair
     }
 
-    static func stripExisting(_ text: String) -> String {
-        var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    public static func stripExisting(_ text: String) -> String {
+        let s = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let pairs = [("$$", "$$"), ("$", "$"), ("\\[", "\\]"), ("\\(", "\\)")]
         for (a, b) in pairs {
-            if s.hasPrefix(a), s.hasSuffix(b), s.count >= a.count + b.count {
-                s = String(s.dropFirst(a.count).dropLast(b.count))
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                return s
-            }
+            guard s.hasPrefix(a), s.hasSuffix(b), s.count >= a.count + b.count else { continue }
+            let body = String(s.dropFirst(a.count).dropLast(b.count))
+            // "$a$ + $b$" starts and ends with "$" but is two expressions.
+            if body.contains(a) { continue }
+            return body.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return s
     }
 
-    static func wrap(_ latex: String, open: String, close: String) -> String {
+    public static func wrap(_ latex: String, open: String, close: String) -> String {
         let body = stripExisting(latex)
         if open.isEmpty && close.isEmpty { return body }
         return "\(open)\(body)\(close)"

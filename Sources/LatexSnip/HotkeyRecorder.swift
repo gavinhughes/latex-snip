@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Carbon
+import LatexSnipCore
 
 /// Click the field, then press the desired shortcut (e.g. ⌘⇧L).
 struct HotkeyRecorder: NSViewRepresentable {
