@@ -3,6 +3,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 VERSION="${VERSION:-0.4.0}"
+# Built-in Texo model (skips files that are already present and verified).
+"$ROOT/scripts/fetch-model.sh"
 swift build -c release
 BIN="$(swift build -c release --show-bin-path)/LatexSnip"
 APP="/Applications/LaTeX Snip.app"
@@ -15,6 +17,8 @@ chmod +x "$APP/Contents/MacOS/LaTeX Snip"
 if [[ -f "$ICNS" ]]; then
   cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
 fi
+cp -R "$ROOT/Models/Texo" "$APP/Contents/Resources/Texo"
+cp "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

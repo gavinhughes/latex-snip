@@ -2,15 +2,16 @@
 
 [![CI](https://github.com/gavinhughes/latex-snip/actions/workflows/ci.yml/badge.svg)](https://github.com/gavinhughes/latex-snip/actions/workflows/ci.yml)
 
-Native **macOS menu-bar** app: hotkey → region screenshot → OpenAI-compatible vision LLM → delimited LaTeX on the clipboard.
+Native **macOS menu-bar** app: hotkey → region screenshot → formula recognition → delimited LaTeX on the clipboard.
 
-Lightweight Mathpix-style snip. Works with **OpenRouter**, **Ollama**, **LM Studio**, or any chat-completions endpoint that accepts images.
+Lightweight Mathpix-style snip. Recognition runs **on your Mac** with the bundled [Texo](https://github.com/alephpi/Texo) model: no setup, no API key, no network. Optionally fall back to **OpenRouter**, **Ollama**, **LM Studio**, or any chat-completions endpoint that accepts images.
 
 ## Features
 
 - Menu bar icon (SF Symbol `function`)
 - Global hotkey (default `⌘⇧L`) via Carbon
-- Two model slots (**Online** / **Offline**): enable either or both, pick which to try first, automatic fallback
+- Built-in **Texo** formula model (about 80 MB, roughly 0.1 s per snip on Apple silicon), tried first
+- Optional LLM backups (**Online** / **Offline**): enable either or both, pick which to try first, automatic fallback
 - Configurable `base_url` / `model` / API key per slot
 - Keys from env or Emacs `~/.authinfo` (offline usually needs none)
 - Delimiter presets: `$…$`, `$$…$$`, `\(…\)`, `\[…\]`, or none
@@ -55,6 +56,8 @@ cd latex-snip
 open "/Applications/LaTeX Snip.app"
 ```
 
+The install script first runs `./scripts/fetch-model.sh`, which downloads the built-in model (about 80 MB) into `Models/Texo` from Hugging Face, pinned to a revision and checked by SHA-256. Later runs reuse it.
+
 Build a DMG locally: `./scripts/package-dmg.sh` → `dist/LaTeXSnip-*.dmg`.
 
 To keep Screen Recording and Accessibility across rebuilds, create a local signing certificate once before installing:
@@ -85,9 +88,11 @@ Menu bar **ƒ** → **Settings…** (or `⌘,`):
 - Delimiter preset / ask before or after
 - Launch at login
 - Show Dock icon (off by default; menu-bar icon stays either way)
-- Models: enable Online and/or Offline, **Try first** order, base URL + model per slot
+- Models: **Built-in model** on/off, enable Online and/or Offline, which of those to try first, base URL + model per slot
 
-Changes save to `~/.config/latex-snip/config.yaml`. A snip tries the preferred enabled slot, then the other if it is on and the first fails.
+Changes save to `~/.config/latex-snip/config.yaml`. A snip tries the built-in model first (when on), then the enabled Online/Offline slots in order, moving on only when one fails or returns nothing.
+
+The built-in model is best on typeset formulas, including matrices, `cases` and multi-line blocks. For handwriting or math mixed with prose, a vision LLM does better: turn **Built-in model** off and enable Online or Offline.
 
 ## Config
 
@@ -95,7 +100,9 @@ Changes save to `~/.config/latex-snip/config.yaml`. A snip tries the preferred e
 
 ```yaml
 models:
-  order: [online, offline]   # try Online first; Offline is backup
+  builtin:
+    enabled: true            # bundled Texo model, tried first
+  order: [online, offline]   # then Online, then Offline
   online:
     enabled: true
     base_url: https://openrouter.ai/api/v1
@@ -119,7 +126,7 @@ notify: true
 show_dock_icon: false
 ```
 
-An older `llm:` block still loads as **Online** (enabled). Saving Settings rewrites the file as `models:`.
+An older `llm:` block still loads as **Online** (enabled). Saving Settings rewrites the file as `models:`. Configs written before the built-in model existed get `builtin: enabled: true`.
 
 Each slot also accepts `api_key`, `system_prompt`, `timeout_s`, `temperature`, and `authinfo` (`true`, `false`, or `{machine: …, login: …}`); all of them are kept when the app saves. `system_prompt` is only written when it differs from the built-in prompt, so leaving it out means you get future improvements to the default. Saving rewrites the whole file, so comments and unrecognised keys are dropped.
 
@@ -142,3 +149,5 @@ Copyright (C) 2026 Gavin Hughes
 LaTeX Snip is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [LICENSE](LICENSE).
 
 Releases up to and including v0.4.0 were published under the MIT License.
+
+The bundled Texo model (© Sicheng Mao, AGPL-3.0), ONNX Runtime (MIT) and Yams (MIT) are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), which ships inside the app with `LICENSE`.

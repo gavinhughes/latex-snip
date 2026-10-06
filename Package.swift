@@ -8,12 +8,16 @@ let package = Package(
         .executable(name: "LatexSnip", targets: ["LatexSnip"])
     ],
     dependencies: [
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0")
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.0"),
+        .package(url: "https://github.com/microsoft/onnxruntime-swift-package-manager", from: "1.24.2")
     ],
     targets: [
         .target(
             name: "LatexSnipCore",
-            dependencies: ["Yams"]
+            dependencies: [
+                "Yams",
+                .product(name: "onnxruntime", package: "onnxruntime-swift-package-manager")
+            ]
         ),
         .executableTarget(
             name: "LatexSnip",
@@ -21,7 +25,8 @@ let package = Package(
         ),
         .testTarget(
             name: "LatexSnipCoreTests",
-            dependencies: ["LatexSnipCore"]
+            dependencies: ["LatexSnipCore"],
+            resources: [.copy("Fixtures")]
         )
     ]
 )

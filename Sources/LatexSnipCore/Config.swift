@@ -204,12 +204,15 @@ public struct AppConfig: Equatable, Codable {
     }
 
     public struct Models: Equatable, Codable {
+        /// The bundled Texo model. When on, it is tried before Online/Offline.
+        public var builtinEnabled: Bool
         public var online: ModelSlot
         public var offline: ModelSlot
-        /// Which slot to try first; the other enabled slot is backup.
+        /// Which LLM slot to try first; the other enabled slot is backup.
         public var preferred: ModelSlotID
 
-        public init(online: ModelSlot, offline: ModelSlot, preferred: ModelSlotID) {
+        public init(builtinEnabled: Bool = true, online: ModelSlot, offline: ModelSlot, preferred: ModelSlotID) {
+            self.builtinEnabled = builtinEnabled
             self.online = online
             self.offline = offline
             self.preferred = preferred
@@ -217,6 +220,7 @@ public struct AppConfig: Equatable, Codable {
 
         public static var `default`: Models {
             Models(
+                builtinEnabled: true,
                 online: ModelSlot(enabled: true, llm: .onlineDefault),
                 offline: ModelSlot(enabled: false, llm: .offlineDefault),
                 preferred: .online
@@ -228,7 +232,12 @@ public struct AppConfig: Equatable, Codable {
         }
 
         public var anyEnabled: Bool {
-            online.enabled || offline.enabled
+            builtinEnabled || online.enabled || offline.enabled
+        }
+
+        /// Everything a snip will try, in order: built-in first, then LLM slots.
+        public var enginesInOrder: [RecognitionEngine] {
+            (builtinEnabled ? [.builtin] : []) + enabledInOrder().map { $0.id == .online ? .online : .offline }
         }
 
         public func enabledInOrder() -> [(id: ModelSlotID, llm: LLM)] {
@@ -255,12 +264,18 @@ public struct AppConfig: Equatable, Codable {
         }
 
         enum CodingKeys: String, CodingKey {
-            case order, preferred, online, offline
+            case builtin, order, preferred, online, offline
+        }
+
+        struct BuiltinBlock: Codable {
+            var enabled: Bool?
         }
 
         public init(from decoder: Decoder) throws {
             let d = Models.default
             let c = try decoder.container(keyedBy: CodingKeys.self)
+            // Missing in configs written before the built-in model existed → on.
+            builtinEnabled = try c.decodeIfPresent(BuiltinBlock.self, forKey: .builtin)?.enabled ?? d.builtinEnabled
             online = c.contains(.online)
                 ? try ModelSlot(from: c.superDecoder(forKey: .online), defaults: d.online)
                 : d.online
@@ -277,6 +292,7 @@ public struct AppConfig: Equatable, Codable {
 
         public func encode(to encoder: Encoder) throws {
             var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(BuiltinBlock(enabled: builtinEnabled), forKey: .builtin)
             try c.encode(order, forKey: .order)
             try c.encode(online, forKey: .online)
             try c.encode(offline, forKey: .offline)

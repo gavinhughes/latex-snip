@@ -6,36 +6,6 @@ public enum LLMClient {
         public var errorDescription: String? { message }
     }
 
-    public struct Recognition: Equatable {
-        public var latex: String
-        public var slot: AppConfig.ModelSlotID
-    }
-
-    /// Try enabled slots in preferred order. Network / HTTP / timeout / empty
-    /// responses fall through to the next enabled slot. Combined error if all fail.
-    public static func recognize(imageURL: URL, models: AppConfig.Models) async throws -> Recognition {
-        let attempts = models.enabledInOrder()
-        guard !attempts.isEmpty else {
-            throw Error(message: "No models enabled. Turn on Online and/or Offline in Settings.")
-        }
-
-        var errors: [String] = []
-        for (id, config) in attempts {
-            do {
-                let latex = try await recognize(imageURL: imageURL, config: config)
-                let trimmed = latex.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.isEmpty {
-                    errors.append("\(id.displayName): empty response")
-                    continue
-                }
-                return Recognition(latex: trimmed, slot: id)
-            } catch {
-                errors.append("\(id.displayName): \(error.localizedDescription)")
-            }
-        }
-        throw Error(message: errors.joined(separator: "\n"))
-    }
-
     public static func recognize(imageURL: URL, config: AppConfig.LLM) async throws -> String {
         guard let base = URL(string: config.baseURL) else {
             throw Error(message: "Invalid base URL")

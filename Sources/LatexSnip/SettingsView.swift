@@ -119,7 +119,11 @@ struct SettingsView: View {
             }
 
             Section("Models") {
-                Picker("Try first", selection: $draft.models.preferred) {
+                Toggle("Built-in model", isOn: $draft.models.builtinEnabled)
+                Text("Runs on this Mac: no setup, no network. Tried first when on.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Online or Offline first", selection: $draft.models.preferred) {
                     Text("Online").tag(AppConfig.ModelSlotID.online)
                     Text("Offline").tag(AppConfig.ModelSlotID.offline)
                 }
@@ -216,19 +220,14 @@ struct SettingsView: View {
     }
 
     private var tryFirstCaption: String {
-        let online = draft.models.online.enabled
-        let offline = draft.models.offline.enabled
-        switch (online, offline) {
-        case (true, true):
-            let first = draft.models.preferred.displayName
-            let second = draft.models.preferred == .online ? "Offline" : "Online"
-            return "Snip uses \(first) first, then \(second) if that fails."
-        case (true, false):
-            return "Only Online is on. Turn on Offline to use it as backup."
-        case (false, true):
-            return "Only Offline is on. Turn on Online to use it as backup."
+        let names = draft.models.enginesInOrder.map(\.displayName)
+        switch names.count {
+        case 0:
+            return "Turn on Built-in, Online, or Offline."
+        case 1:
+            return "Snip uses \(names[0]) only."
         default:
-            return "Turn on Online, Offline, or both."
+            return "Snip uses \(names[0]), then \(names.dropFirst().joined(separator: ", then ")) if that fails."
         }
     }
 
