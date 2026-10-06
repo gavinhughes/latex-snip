@@ -121,7 +121,7 @@ show_dock_icon: false
 
 An older `llm:` block still loads as **Online** (enabled). Saving Settings rewrites the file as `models:`.
 
-Each slot also accepts `api_key`, `system_prompt`, `timeout_s`, `temperature`, and `authinfo` (`true`, `false`, or `{machine: …, login: …}`); all of them are kept when the app saves. Saving rewrites the whole file, so comments and unrecognised keys are dropped.
+Each slot also accepts `api_key`, `system_prompt`, `timeout_s`, `temperature`, and `authinfo` (`true`, `false`, or `{machine: …, login: …}`); all of them are kept when the app saves. `system_prompt` is only written when it differs from the built-in prompt, so leaving it out means you get future improvements to the default. Saving rewrites the whole file, so comments and unrecognised keys are dropped.
 
 If the file can't be read (bad YAML, or a wrong value such as `preset: bogus`), the menu shows **Config error** and Settings shows the exact problem while the app runs on defaults. Fix the file and choose **Reload config**, or save from the app: the unreadable file is first copied to `config.yaml.bak`.
 

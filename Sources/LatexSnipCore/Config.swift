@@ -168,7 +168,11 @@ public struct AppConfig: Equatable, Codable {
                 try c.encode(timeout, forKey: .timeout)
             }
             try c.encode(temperature, forKey: .temperature)
-            try c.encode(systemPrompt, forKey: .systemPrompt)
+            // Only a custom prompt is written, so users keep getting
+            // improvements to the built-in one.
+            if systemPrompt != LLM.defaultSystemPrompt {
+                try c.encode(systemPrompt, forKey: .systemPrompt)
+            }
         }
     }
 

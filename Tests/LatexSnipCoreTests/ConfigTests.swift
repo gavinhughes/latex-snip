@@ -36,6 +36,24 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(try AppConfig.load(from: url), .default)
     }
 
+    func testDefaultSystemPromptIsNotWritten() throws {
+        let url = try makeTempDir(self).appendingPathComponent("config.yaml")
+        try AppConfig.default.save(to: url)
+        let yaml = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertFalse(yaml.contains("system_prompt"), yaml)
+    }
+
+    func testCustomSystemPromptIsWritten() throws {
+        let url = try makeTempDir(self).appendingPathComponent("config.yaml")
+        var c = AppConfig.default
+        c.models.offline.llm.systemPrompt = "Only LaTeX."
+        try c.save(to: url)
+        let yaml = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertEqual(yaml.components(separatedBy: "system_prompt").count - 1, 1, yaml)
+        XCTAssertEqual(try AppConfig.load(from: url).models.offline.llm.systemPrompt, "Only LaTeX.")
+        XCTAssertEqual(try AppConfig.load(from: url).models.online.llm.systemPrompt, AppConfig.LLM.defaultSystemPrompt)
+    }
+
     func testEmptyAPIKeyEnvIsWrittenAndNotReverted() throws {
         let url = try makeTempDir(self).appendingPathComponent("config.yaml")
         var c = AppConfig.default
